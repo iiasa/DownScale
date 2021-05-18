@@ -141,8 +141,6 @@ Sh_Trans_Cost(SimUID)
 Inv_Trans_Cost(SimUID)
 Inv_Trans_Cost_Tot(REGION)
 Sh_Inv_Trans_Cost(SimUID)
-Pop_Tot(REGION)
-Sh_Pop(SimUID)
 PRODUCT_CROP_UNIT_INPUT(SimUID,CROP,INPUT_LEVEL)
 Yield_CROP_UNIT_INPUT(SimUID,CROP,INPUT_LEVEL)
 Area_CROP_UNIT_INPUT(SimUID,CROP,INPUT_LEVEL)
@@ -214,7 +212,7 @@ LndP_VAR(LC_TYPES_EPIC,SimUID)
 ;
 
 EQUATIONS
-ENTROPY_EQU                                              Cross-enthropy equation
+ENTROPY_EQU                                              Cross-entropy equation
 SH_EQU(LC_TYPES_EPIC,LC_TYPES_EPIC)
 Sum_LAND_SU_EQU(SimUID)                                  Total land in sim unit equals to SimUarea
 Land_Positive_SU_EQU(LC_TYPES_EPIC,SimUID)
@@ -409,10 +407,6 @@ Inv_Trans_Cost(rSimUID) $(Transportation(rSimUID,'MEAN1')>0) = 1/(0.4*Transporta
 Inv_Trans_Cost_Tot(REGION) = 0;
 Inv_Trans_Cost_Tot(REGION) = sum(rSimUID, Inv_Trans_Cost(rSimUID)) ;
 Sh_Inv_Trans_Cost(rSimUID) $(Inv_Trans_Cost_Tot(REGION)>0) = Inv_Trans_Cost(rSimUID) / (Inv_Trans_Cost_Tot(REGION)) ;
-
-* Population related variables, i.e. relative pop density
-Pop_Tot(REGION) = sum(rSimUID, POP(rSimUID,'MEAN2000')) ;
-Sh_Pop(rSimUID) $(Pop_Tot(REGION)>0) = POP(rSimUID,'MEAN2000')/(Pop_Tot(REGION)) ;
 
 * Value of crop production by crop and input level
 Yield_CROP_UNIT_INPUT(rSimUID,CROP,INPUT_LEVEL)

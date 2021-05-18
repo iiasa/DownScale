@@ -15,3 +15,5 @@
 *.lst
 *.lxi
 *.~gm
+*.dat
+*.cmd
