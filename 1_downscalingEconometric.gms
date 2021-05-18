@@ -87,6 +87,19 @@ $GDXIN .\source\Forestparameters.gdx
 $LOAD MngForest_Param
 $GDXIN
 
+*Load X-Matrix
+parameters
+xmat(*,*,*);
+$GDXIN  .\source\Xmat.gdx
+$load xmat=value
+$GDXIN
+
+*Load estimated luc coefficients
+parameters luc_downscl_coeff(*,*,*,*);
+$gdxin .\source\betas_REGION.gdx
+$load luc_downscl_coeff=value
+$gdxin
+
 * Scenario mapping for condor run
 SET
 ScenLOOP(AllScenLOOP)
@@ -328,7 +341,7 @@ MODEL ENTROPYMAX/
       Land_Positive_SU_EQU
       Delta_Land_00_EQU/;
 
-
+$ontext
 * Initialize priors
 LOOP(MAP_ScenLOOP_ScenDims(ScenLOOP,MacroScen,BioenScen,IEA_SCEN,REGION),
 
@@ -637,7 +650,7 @@ Land_Cover_SU_Region(REGION,SimUID,LC_TYPES_EPIC,ScenYear) $(Land_Cover_SU_Regio
 Land_Cover_SU_Region_SCEN(REGION,SimUID,LC_TYPES_EPIC,MacroScen,BioenScen,IEA_SCEN,ScenYear) = Land_Cover_SU_Region(REGION,SimUID,LC_TYPES_EPIC,ScenYear) ;
 );
 
-$include .\source\set_g4mIDsimUIDmap.gms
+*$include .\source\set_g4mIDsimUIDmap.gms
 
 SET
 Rg4m_05_id(g4m_05_id);
@@ -676,3 +689,6 @@ LandCover_G4MID(Rg4m_05_id,MacroScen,IEA_SCEN,BioenScen,"% Reserved",ScenYear)
 execute_unload 'gdx\downscaled.gdx',
 Delta_fin, Delta_Init, Delta_LAND_Region, sum_Land_Cover_tt_after, Land_Cover_SU_Region, Land_Cover_SU_Region_SCEN, Delta_LAND_Region, LandCover_G4MID
 ;
+$offtext
+
+execute_unload 'temp_check.gdx';

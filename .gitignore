@@ -8,3 +8,10 @@
 225a/gamsstat.dat
 225a/gamswrk0.dat
 225a/gmsprmNT.dat
+1_downscaling.log
+1_downscaling.lst
+1_downscaling.lxi
+*.log
+*.lst
+*.lxi
+*.~gm
