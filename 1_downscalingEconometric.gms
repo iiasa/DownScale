@@ -55,11 +55,6 @@ $ondelim
 $include .\source\acc_mean_travel_minutes_simu.csv
 $offdelim
 
-TABLE POP(SimUID,ATTRIBUTE2) Population density
-$ondelim
-$include .\source\popdens2000_2050.csv
-$offdelim
-
 $include .\source\data_GrasYield_X.gms
 $onlisting
 
@@ -91,7 +86,7 @@ $GDXIN
 parameters
 xmat(*,*,*);
 $GDXIN  .\source\Xmat.gdx
-$load xmat=value
+$load xmat
 $GDXIN
 
 *Load estimated luc coefficients
@@ -154,8 +149,6 @@ Sh_Trans_Cost(SimUID)
 Inv_Trans_Cost(SimUID)
 Inv_Trans_Cost_Tot(REGION)
 Sh_Inv_Trans_Cost(SimUID)
-Pop_Tot(REGION)
-Sh_Pop(SimUID)
 PRODUCT_CROP_UNIT_INPUT(SimUID,CROP,INPUT_LEVEL)
 Yield_CROP_UNIT_INPUT(SimUID,CROP,INPUT_LEVEL)
 Area_CROP_UNIT_INPUT(SimUID,CROP,INPUT_LEVEL)
