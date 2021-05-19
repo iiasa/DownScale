@@ -79,15 +79,15 @@ LC_MAP_EPIC_LUCSET2(LC_TYPES_EPIC,LUC_Set);
 LC_MAP_EPIC_LUCSET2(LC_TYPES_EPIC,LUC_Set)
  $ LC_MAP_EPIC_LUCSET(LC_TYPES_EPIC,LUC_Set) = YES ;
 
-SET regr_coeff_exist(LC_TYPE_DS,LC_TYPE_DS) /
-  CrpLnd.GrsLnd
-  CrpLnd.NatLnd
-  GrsLnd.CrpLnd
-  GrsLnd.NatLnd
-  PriFor.CrpLnd
-  PriFor.GrsLnd
-  NatLnd.CrpLnd
-  NatLnd.GrsLnd
+SET regr_coeff_exist(LC_TYPES_EPIC,LC_TYPES_EPIC) /
+  CrpLnd.Grass
+  CrpLnd.OthNatLnd
+  Grass.CrpLnd
+  Grass.OthNatLnd
+  Forest.CrpLnd
+  Forest.Grass
+  OthNatLnd.CrpLnd
+  OthNatLnd.Grass
 /;
 
 
