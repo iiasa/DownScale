@@ -83,14 +83,16 @@ $LOAD MngForest_Param
 $GDXIN
 
 *Load X-Matrix
+set coeff_variable;
 parameters
-xmat(*,*,*);
+xmat(*,*,coeff_variable);
 $GDXIN  .\source\Xmat.gdx
+$load coeff_variable
 $load xmat
 $GDXIN
 
 *Load estimated luc coefficients
-parameters luc_downscl_coeff(*,*,*,*);
+parameters luc_downscl_coeff(*,*,coeff_variable,*);
 $gdxin .\source\betas_REGION.gdx
 $load luc_downscl_coeff=value
 $gdxin
@@ -334,7 +336,6 @@ MODEL ENTROPYMAX/
       Land_Positive_SU_EQU
       Delta_Land_00_EQU/;
 
-$ontext
 * Initialize priors
 LOOP(MAP_ScenLOOP_ScenDims(ScenLOOP,MacroScen,BioenScen,IEA_SCEN,REGION),
 
@@ -455,6 +456,28 @@ Sh_Inv_Prod(rSimUID) $((Sum_Inv_Prod(REGION)>0) AND ( Land_Cover_SU(rSimUID,'Crp
 SH1('CrpLnd','Grass',rSimUID)  = 0 ;
 SH1('CrpLnd','Grass',rSimUID)  = Sh_Inv_Prod(rSimUID) ;
 
+SH1('CrpLnd','OthNatLnd',rSimUID) = 0 ;
+SH1('CrpLnd','OthNatLnd',rSimUID)= Sh_Inv_Prod_NatLand(rSimUID) ;
+
+SH1('Grass','CrpLnd',rSimUID) = 0 ;
+SH1('Grass','CrpLnd',rSimUID)  $((Sum_AreaWeighted_Product_Tot > 0) AND (Land_Cover_SU(rSimUID,'Grass') >0))  = Land_Cover_SU(rSimUID,'Grass') / Sum_AreaWeighted_Product_Tot ;
+
+SH1('Grass','OthNatLnd',rSimUID) = 0 ;
+SH1('Grass','OthNatLnd',rSimUID) = Land_Cover_SU(rSimUID,'Grass')/Aux_Grass_NatLand  ;
+
+SH1('Forest','CrpLnd',rSimUID) = 0;
+SH1('Forest','CrpLnd',rSimUID) $((Land_Cover_SU(rSimUID,'Forest') > 0 ) AND (MngForest_Param(rSimUID,'CurN','HarvWood') >0) AND (MngForest_Param(rSimUID,'CurN','HarvCost') >0) AND (AuxForest_CrpLnd >0)) = MngForest_Param(rSimUID,'CurN','HarvCost')* (1/(Land_Cover_SU(rSimUID,'Forest')*MngForest_Param(rSimUID,'CurN','HarvWood')))*Inv_Trans_Cost(rSimUID)*AreaWeighted_Product_Tot(rSimUID) / AuxForest_CrpLnd ;
+
+SH1('Forest','Grass',rSimUID) = 0 ;
+SH1('Forest','Grass',rSimUID) $(Land_Cover_SU(rSimUID,'Forest') > 0 ) = Land_Cover_SU(rSimUID,'Forest') / AuxForest_Grass ;
+
+SH1('OthNatLnd','CrpLnd',rSimUID) = 0 ;
+SH1('OthNatLnd','CrpLnd',rSimUID) $((Sum_Product_NatLand > 0) AND (Land_Cover_SU(rSimUID,'OthNatLnd') > 0 )) = Aux(rSimUID) /Sum_Product_NatLand ;
+
+SH1('OthNatLnd','Grass',rSimUID) = 0 ;
+SH1('OthNatLnd','Grass',rSimUID) $((Sum_Grass_NatLand > 0) AND (Land_Cover_SU(rSimUID,'OthNatLnd') > 0 )) = Land_Cover_SU(rSimUID,'OthNatLnd') / Sum_Grass_NatLand;
+
+
 Sum_Product(REGION) = 0 ;
 Sum_Product(REGION)
  = sum (rSimUID $( Land_Cover_SU(rSimUID,'CrpLnd') > 0), Inv_Trans_Cost(rSimUID)*AreaWeighted_Product_Tot(rSimUID)) ;
@@ -473,9 +496,6 @@ Sum_Inv_Prod_NatLand(REGION)
 
 Sh_Inv_Prod_NatLand(rSimUID) $((Sum_Inv_Prod_NatLand(REGION)>0) AND (Land_Cover_SU(rSimUID,'CrpLnd') > 0)) = Inv_Prod_SU(rSimUID) / (Sum_Inv_Prod_NatLand(REGION)) ;
 
-SH1('CrpLnd','OthNatLnd',rSimUID) = 0 ;
-SH1('CrpLnd','OthNatLnd',rSimUID)= Sh_Inv_Prod_NatLand(rSimUID) ;
-
 * 'CrpLnd' to 'PltFor'
 Aux_CrpLnd_PltFor =
  sum((rSimUID) $((AreaWeighted_Product_Tot(rSimUID) >0) AND (Inv_Trans_Cost(rSimUID) >0) AND (Land_Cover_SU(rSimUID,'CrpLnd') > 0)) , PltForSimUnit(rSimUID)*(1/(Inv_Trans_Cost(rSimUID)*AreaWeighted_Product_Tot(rSimUID)))) ;
@@ -485,8 +505,6 @@ SH1('CrpLnd','PltFor',rSimUID) $((Aux_CrpLnd_PltFor > 0) AND (AreaWeighted_Produ
 
 * 'Grass' to 'CrpLnd'
 Sum_AreaWeighted_Product_Tot = sum(rSimUID $(Land_Cover_SU(rSimUID,'Grass') > 0), Land_Cover_SU(rSimUID,'Grass')) ;
-SH1('Grass','CrpLnd',rSimUID) = 0 ;
-SH1('Grass','CrpLnd',rSimUID)  $((Sum_AreaWeighted_Product_Tot > 0) AND (Land_Cover_SU(rSimUID,'Grass') >0))  = Land_Cover_SU(rSimUID,'Grass') / Sum_AreaWeighted_Product_Tot ;
 
 * 'Grass' to 'PltFor'
 Inv_Grass_Prod(rSimUID) $(Grass_Yield_SU(rSimUID)>0) = 1/ (Grass_Yield_SU(rSimUID)) ;
@@ -508,8 +526,6 @@ Aux_Grass_NatLand = 0 ;
 Aux_Grass_NatLand
  = sum((rSimUID) $(Land_Cover_SU(rSimUID,'Grass') > 0) , Land_Cover_SU(rSimUID,'Grass') ) ;
 
-SH1('Grass','OthNatLnd',rSimUID) = 0 ;
-SH1('Grass','OthNatLnd',rSimUID) = Land_Cover_SU(rSimUID,'Grass')/Aux_Grass_NatLand  ;
 
 * 'PltFor' to 'OthNatLnd'
 SH1('PltFor','OthNatLnd',rSimUID) = 0 ;
@@ -520,16 +536,11 @@ AuxForest_CrpLnd = 0;
 AuxForest_CrpLnd
  = sum( (rSimUID) $((Land_Cover_SU(rSimUID,'Forest') > 0 ) AND (MngForest_Param(rSimUID,'CurN','HarvWood') >0) AND (MngForest_Param(rSimUID,'CurN','HarvCost') >0)) , MngForest_Param(rSimUID,'CurN','HarvCost') * (1/(Land_Cover_SU(rSimUID,'Forest')*MngForest_Param(rSimUID,'CurN','HarvWood')))*Inv_Trans_Cost(rSimUID)*AreaWeighted_Product_Tot(rSimUID)) ;
 
-SH1('Forest','CrpLnd',rSimUID) = 0;
-SH1('Forest','CrpLnd',rSimUID) $((Land_Cover_SU(rSimUID,'Forest') > 0 ) AND (MngForest_Param(rSimUID,'CurN','HarvWood') >0) AND (MngForest_Param(rSimUID,'CurN','HarvCost') >0) AND (AuxForest_CrpLnd >0)) = MngForest_Param(rSimUID,'CurN','HarvCost')* (1/(Land_Cover_SU(rSimUID,'Forest')*MngForest_Param(rSimUID,'CurN','HarvWood')))*Inv_Trans_Cost(rSimUID)*AreaWeighted_Product_Tot(rSimUID) / AuxForest_CrpLnd ;
 
 * 'Forest' to 'Grass'
 AuxForest_Grass = 0;
 AuxForest_Grass
  = sum((rSimUID) $(Land_Cover_SU(rSimUID,'Forest') > 0 ) , Land_Cover_SU(rSimUID,'Forest')) ;
-
-SH1('Forest','Grass',rSimUID) = 0 ;
-SH1('Forest','Grass',rSimUID) $(Land_Cover_SU(rSimUID,'Forest') > 0 ) = Land_Cover_SU(rSimUID,'Forest') / AuxForest_Grass ;
 
 * 'OthNatLnd' to 'CrpLnd'
 Sum_Product_NatLand = 0 ;
@@ -538,15 +549,9 @@ Sum_Product_NatLand
 
 Aux(rSimUID) $(Land_Cover_SU(rSimUID,'OthNatLnd') > 0 ) =  Inv_Trans_Cost(rSimUID)*AreaWeighted_Product_Tot(rSimUID) ;
 
-SH1('OthNatLnd','CrpLnd',rSimUID) = 0 ;
-SH1('OthNatLnd','CrpLnd',rSimUID) $((Sum_Product_NatLand > 0) AND (Land_Cover_SU(rSimUID,'OthNatLnd') > 0 )) = Aux(rSimUID) /Sum_Product_NatLand ;
-
 * 'OthNatLnd' to 'Grass'
 Sum_Grass_NatLand =0 ;
 Sum_Grass_NatLand = sum (rSimUID $(Land_Cover_SU(rSimUID,'OthNatLnd') > 0 ), Land_Cover_SU(rSimUID,'OthNatLnd')) ;
-
-SH1('OthNatLnd','Grass',rSimUID) = 0 ;
-SH1('OthNatLnd','Grass',rSimUID) $((Sum_Grass_NatLand > 0) AND (Land_Cover_SU(rSimUID,'OthNatLnd') > 0 )) = Land_Cover_SU(rSimUID,'OthNatLnd') / Sum_Grass_NatLand;
 
 * 'OthNatLnd' to 'PltFor'
 PltForSum_NatLand = 0 ;
@@ -633,7 +638,7 @@ Option kill= INTERM1_VAR ;
 
 Option clear = rSimUID ;
 
-
+$ontext
 * PART 3: MAPPING TO G4Mm REPORTING
 PARAMETER
 Land_Cover_SU_Region_SCEN(REGION,SimUID,LC_TYPES_EPIC,MacroScen,BioenScen,IEA_SCEN,ScenYear);

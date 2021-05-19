@@ -79,6 +79,17 @@ LC_MAP_EPIC_LUCSET2(LC_TYPES_EPIC,LUC_Set);
 LC_MAP_EPIC_LUCSET2(LC_TYPES_EPIC,LUC_Set)
  $ LC_MAP_EPIC_LUCSET(LC_TYPES_EPIC,LUC_Set) = YES ;
 
+SET regr_coeff_exist(LC_TYPE_DS,LC_TYPE_DS) /
+  CrpLnd.GrsLnd
+  CrpLnd.NatLnd
+  GrsLnd.CrpLnd
+  GrsLnd.NatLnd
+  PriFor.CrpLnd
+  PriFor.GrsLnd
+  NatLnd.CrpLnd
+  NatLnd.GrsLnd
+/;
+
 
 ALIAS(LC_TYPES_EPIC,LC_TYPES_EPIC1,LC_TYPES_EPIC2);
 ALIAS(LUC_Set,LUC1);
