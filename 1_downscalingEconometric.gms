@@ -82,19 +82,52 @@ $GDXIN .\source\Forestparameters.gdx
 $LOAD MngForest_Param
 $GDXIN
 
+* load population projections
+PARAMETER pop(*,*,*,*);
+$GDXIN .\source\pop_SSP1.gdx
+$LOADM pop
+$GDXIN
+$GDXIN .\source\pop_SSP2.gdx
+$LOADM pop
+$GDXIN
+$GDXIN .\source\pop_SSP3.gdx
+$LOADM pop
+$GDXIN
+$GDXIN .\source\pop_SSP4.gdx
+$LOADM pop
+$GDXIN
+$GDXIN .\source\pop_SSP5.gdx
+$LOADM pop
+$GDXIN
+
+* load gdp projections
+PARAMETER gdp(*,*,*);
+$GDXIN .\source\gdp.gdx
+$LOADM gdp
+$GDXIN
+
+* load yield shifters
+PARAMETER YLD_SSP_STAT(*,*,CROP,*);
+$GDXIN .\source\YLD_SSP_STATandDYN_regions37.gdx
+$LOADM YLD_SSP_STAT
+$GDXIN
+
 *Load X-Matrix
 set coeff_variable;
 parameters
-xmat(*,*,coeff_variable);
+init_xmat(*,*,*),
+xmat(*,*,*),
+trans_factors(*);
 $GDXIN  .\source\Xmat.gdx
 $load coeff_variable
-$load xmat
+$load init_xmat = xmat
+$load trans_factors
 $GDXIN
 
 *Load estimated luc coefficients
-parameters luc_downscl_coeff(*,*,coeff_variable,*);
-$gdxin .\source\betas_REGION.gdx
-$load luc_downscl_coeff=value
+parameters luc_downscl_coeff(*,LC_TYPES_EPIC,LC_TYPES_EPIC,coeff_variable);
+$gdxin .\source\betas.gdx
+$load luc_downscl_coeff=luc_downscl_coeff
 $gdxin
 
 * Scenario mapping for condor run
@@ -183,6 +216,7 @@ Aux_Trans(SimUID)
 MIN_Trans
 * prior shares
 SH1(LC_TYPES_EPIC,LC_TYPES_EPIC,SimUID)
+SH1_colsums(LC_TYPES_EPIC,LC_TYPES_EPIC)
 * Consistency checks, Auxiliary variables
 SH1_Check_sum(LC_TYPES_EPIC,LC_TYPES_EPIC,ScenYear)
 X_Check_sum(LC_TYPES_EPIC,LC_TYPES_EPIC,ScenYear)
@@ -344,6 +378,10 @@ LOOP(MAP_ScenLOOP_ScenDims(ScenLOOP,MacroScen,BioenScen,IEA_SCEN,REGION),
     SimUID_reg_MAP(SimUID,COUNTRY))
   = YES ;
 
+* current version of determinant matrix
+ xmat(rSimUID,REGION,coeff_variable) = 0;
+ xmat(rSimUID,REGION,coeff_variable) = init_xmat(rSimUID,REGION,coeff_variable);
+
 LOOP(ScenYear,
 
 * Initialization of land use change to be equal to LUC_COMPARE_SCEN0(REGION,LUC_Set1,LUC_Set2,MacroScen,BioenScen,IEA_SCEN,ScenYear)
@@ -417,13 +455,10 @@ Inv_Trans_Cost_Tot(REGION) = 0;
 Inv_Trans_Cost_Tot(REGION) = sum(rSimUID, Inv_Trans_Cost(rSimUID)) ;
 Sh_Inv_Trans_Cost(rSimUID) $(Inv_Trans_Cost_Tot(REGION)>0) = Inv_Trans_Cost(rSimUID) / (Inv_Trans_Cost_Tot(REGION)) ;
 
-* Population related variables, i.e. relative pop density
-Pop_Tot(REGION) = sum(rSimUID, POP(rSimUID,'MEAN2000')) ;
-Sh_Pop(rSimUID) $(Pop_Tot(REGION)>0) = POP(rSimUID,'MEAN2000')/(Pop_Tot(REGION)) ;
-
 * Value of crop production by crop and input level
 Yield_CROP_UNIT_INPUT(rSimUID,CROP,INPUT_LEVEL)
- = sum(SimUID_reg_MAP(rSimUID,COUNTRY), Yield_Simu(rSimUID,COUNTRY,CROP,INPUT_LEVEL)) ;
+ = sum(SimUID_reg_MAP(rSimUID,COUNTRY), Yield_Simu(rSimUID,COUNTRY,CROP,INPUT_LEVEL))
+          * YLD_SSP_STAT(MacroScen,REGION,CROP,ScenYear);
 
 Area_CROP_UNIT_INPUT(rSimUID,CROP,INPUT_LEVEL)
  = sum(SimUID_reg_MAP(rSimUID,COUNTRY), Area(rSimUID,COUNTRY,CROP,INPUT_LEVEL)) ;
@@ -451,33 +486,47 @@ Sum_Inv_Prod(REGION)
 Sh_Inv_Prod(rSimUID) = 0 ;
 Sh_Inv_Prod(rSimUID) $((Sum_Inv_Prod(REGION)>0) AND ( Land_Cover_SU(rSimUID,'CrpLnd') > 0)) = Inv_Prod_SU(rSimUID) / (Sum_Inv_Prod(REGION)) ;
 
+* Update yields in xmat
+xmat(rSimUID,REGION,CROP) = Product_Tot(rSimUID) * trans_factors(CROP);
+
 * Defining Prior shares of land use conversion
-* Crop to Grass land
-SH1('CrpLnd','Grass',rSimUID)  = 0 ;
-SH1('CrpLnd','Grass',rSimUID)  = Sh_Inv_Prod(rSimUID) ;
+SH1(LC_TYPES_EPIC,LC_TYPES_EPIC2,rSimUID) = 0;
 
-SH1('CrpLnd','OthNatLnd',rSimUID) = 0 ;
-SH1('CrpLnd','OthNatLnd',rSimUID)= Sh_Inv_Prod_NatLand(rSimUID) ;
-
-SH1('Grass','CrpLnd',rSimUID) = 0 ;
-SH1('Grass','CrpLnd',rSimUID)  $((Sum_AreaWeighted_Product_Tot > 0) AND (Land_Cover_SU(rSimUID,'Grass') >0))  = Land_Cover_SU(rSimUID,'Grass') / Sum_AreaWeighted_Product_Tot ;
-
-SH1('Grass','OthNatLnd',rSimUID) = 0 ;
-SH1('Grass','OthNatLnd',rSimUID) = Land_Cover_SU(rSimUID,'Grass')/Aux_Grass_NatLand  ;
-
-SH1('Forest','CrpLnd',rSimUID) = 0;
-SH1('Forest','CrpLnd',rSimUID) $((Land_Cover_SU(rSimUID,'Forest') > 0 ) AND (MngForest_Param(rSimUID,'CurN','HarvWood') >0) AND (MngForest_Param(rSimUID,'CurN','HarvCost') >0) AND (AuxForest_CrpLnd >0)) = MngForest_Param(rSimUID,'CurN','HarvCost')* (1/(Land_Cover_SU(rSimUID,'Forest')*MngForest_Param(rSimUID,'CurN','HarvWood')))*Inv_Trans_Cost(rSimUID)*AreaWeighted_Product_Tot(rSimUID) / AuxForest_CrpLnd ;
-
-SH1('Forest','Grass',rSimUID) = 0 ;
-SH1('Forest','Grass',rSimUID) $(Land_Cover_SU(rSimUID,'Forest') > 0 ) = Land_Cover_SU(rSimUID,'Forest') / AuxForest_Grass ;
-
-SH1('OthNatLnd','CrpLnd',rSimUID) = 0 ;
-SH1('OthNatLnd','CrpLnd',rSimUID) $((Sum_Product_NatLand > 0) AND (Land_Cover_SU(rSimUID,'OthNatLnd') > 0 )) = Aux(rSimUID) /Sum_Product_NatLand ;
-
-SH1('OthNatLnd','Grass',rSimUID) = 0 ;
-SH1('OthNatLnd','Grass',rSimUID) $((Sum_Grass_NatLand > 0) AND (Land_Cover_SU(rSimUID,'OthNatLnd') > 0 )) = Land_Cover_SU(rSimUID,'OthNatLnd') / Sum_Grass_NatLand;
+* Construct the econometric priors
+SH1(LC_TYPES_EPIC,LC_TYPES_EPIC2,rSimUID)$(DDelta(LC_TYPES_EPIC,LC_TYPES_EPIC2) > 0 AND
+                                             regr_coeff_exist(LC_TYPES_EPIC,LC_TYPES_EPIC2)) =
+                 SUM(coeff_variable,
+                          xmat(rSimUID,REGION,coeff_variable) *
+                          luc_downscl_coeff(REGION,LC_TYPES_EPIC,LC_TYPES_EPIC2,coeff_variable));
+SH1(LC_TYPES_EPIC,LC_TYPES_EPIC2,rSimUID)$ (SH1(LC_TYPES_EPIC,LC_TYPES_EPIC2,rSimUID) <> 0  AND
+                                             regr_coeff_exist(LC_TYPES_EPIC,LC_TYPES_EPIC2)) =
+           exp(SH1(LC_TYPES_EPIC,LC_TYPES_EPIC2,rSimUID));
+* restrict expansions for e.g. cropland, grassland etc
+SH1(LC_TYPES_EPIC,"CrpLnd",rSimUID)$(Product_Tot(rSimUID) = 0) = 0;
 
 
+* restrict expansion to where land cover actually exists
+SH1(LC_TYPES_EPIC,LC_TYPES_EPIC2,rSimUID)$( Land_Cover_SU(rSimUID,LC_TYPES_EPIC) = 0 AND
+                                             regr_coeff_exist(LC_TYPES_EPIC,LC_TYPES_EPIC2))  = 0;
+
+SH1(LC_TYPES_EPIC,LC_TYPES_EPIC2,rSimUID)$( SUM(LC_TYPES_EPIC1 , SH1(LC_TYPES_EPIC,LC_TYPES_EPIC1,rSimUID)) > 0 ) =
+                    SH1(LC_TYPES_EPIC,LC_TYPES_EPIC2,rSimUID) / (SUM(LC_TYPES_EPIC1 , SH1(LC_TYPES_EPIC,LC_TYPES_EPIC1,rSimUID) ) + 1 );
+
+SH1(LC_TYPES_EPIC,LC_TYPES_EPIC2,rSimUID)$(Ddelta(LC_TYPES_EPIC,LC_TYPES_EPIC2)>0 AND
+                                         regr_coeff_exist(LC_TYPES_EPIC,LC_TYPES_EPIC2) AND
+                                         SH1(LC_TYPES_EPIC,LC_TYPES_EPIC2,rSimUID) > 0) =
+                    SH1(LC_TYPES_EPIC,LC_TYPES_EPIC2,rSimUID) * Land_Cover_SU(rSimUID,LC_TYPES_EPIC);
+
+SH1_colsums(LC_TYPES_EPIC,LC_TYPES_EPIC2)$(Ddelta(LC_TYPES_EPIC,LC_TYPES_EPIC2)>0 AND
+                                         regr_coeff_exist(LC_TYPES_EPIC,LC_TYPES_EPIC2)) =
+                    SUM( rSimUID$(SH1(LC_TYPES_EPIC,LC_TYPES_EPIC2,rSimUID) > 0) , SH1(LC_TYPES_EPIC,LC_TYPES_EPIC2,rSimUID));
+* Make all priors sum up to one
+SH1(LC_TYPES_EPIC,LC_TYPES_EPIC2,rSimUID)$( SH1_colsums(LC_TYPES_EPIC,LC_TYPES_EPIC2) <> 0 ) =
+                    SH1(LC_TYPES_EPIC,LC_TYPES_EPIC2,rSimUID) / SH1_colsums(LC_TYPES_EPIC,LC_TYPES_EPIC2);
+
+SH1_colsums(LC_TYPES_EPIC,LC_TYPES_EPIC2) =  SUM( rSimUID , SH1(LC_TYPES_EPIC,LC_TYPES_EPIC2,rSimUID));
+
+*************************
 Sum_Product(REGION) = 0 ;
 Sum_Product(REGION)
  = sum (rSimUID $( Land_Cover_SU(rSimUID,'CrpLnd') > 0), Inv_Trans_Cost(rSimUID)*AreaWeighted_Product_Tot(rSimUID)) ;
@@ -560,6 +609,34 @@ PltForSum_NatLand = sum(rSimUID $(Land_Cover_SU(rSimUID,'OthNatLnd') > 0.0), Plt
 SH1('OthNatLnd','PltFor',rSimUID) = 0 ;
 SH1('OthNatLnd','PltFor',rSimUID) $((PltForSum_NatLand >0) AND (Land_Cover_SU(rSimUID,'OthNatLnd') > 0.0))  = PltForSimUnit(rSimUID)/PltForSum_NatLand ;
 
+
+$ontext
+* Crop to Grass land
+SH1('CrpLnd','Grass',rSimUID)  = 0 ;
+SH1('CrpLnd','Grass',rSimUID)  = Sh_Inv_Prod(rSimUID) ;
+
+SH1('CrpLnd','OthNatLnd',rSimUID) = 0 ;
+SH1('CrpLnd','OthNatLnd',rSimUID)= Sh_Inv_Prod_NatLand(rSimUID) ;
+
+SH1('Grass','CrpLnd',rSimUID) = 0 ;
+SH1('Grass','CrpLnd',rSimUID)  $((Sum_AreaWeighted_Product_Tot > 0) AND (Land_Cover_SU(rSimUID,'Grass') >0))  = Land_Cover_SU(rSimUID,'Grass') / Sum_AreaWeighted_Product_Tot ;
+
+SH1('Grass','OthNatLnd',rSimUID) = 0 ;
+SH1('Grass','OthNatLnd',rSimUID) = Land_Cover_SU(rSimUID,'Grass')/Aux_Grass_NatLand  ;
+
+SH1('Forest','CrpLnd',rSimUID) = 0;
+SH1('Forest','CrpLnd',rSimUID) $((Land_Cover_SU(rSimUID,'Forest') > 0 ) AND (MngForest_Param(rSimUID,'CurN','HarvWood') >0) AND (MngForest_Param(rSimUID,'CurN','HarvCost') >0) AND (AuxForest_CrpLnd >0)) = MngForest_Param(rSimUID,'CurN','HarvCost')* (1/(Land_Cover_SU(rSimUID,'Forest')*MngForest_Param(rSimUID,'CurN','HarvWood')))*Inv_Trans_Cost(rSimUID)*AreaWeighted_Product_Tot(rSimUID) / AuxForest_CrpLnd ;
+
+SH1('Forest','Grass',rSimUID) = 0 ;
+SH1('Forest','Grass',rSimUID) $(Land_Cover_SU(rSimUID,'Forest') > 0 ) = Land_Cover_SU(rSimUID,'Forest') / AuxForest_Grass ;
+
+SH1('OthNatLnd','CrpLnd',rSimUID) = 0 ;
+SH1('OthNatLnd','CrpLnd',rSimUID) $((Sum_Product_NatLand > 0) AND (Land_Cover_SU(rSimUID,'OthNatLnd') > 0 )) = Aux(rSimUID) /Sum_Product_NatLand ;
+
+SH1('OthNatLnd','Grass',rSimUID) = 0 ;
+SH1('OthNatLnd','Grass',rSimUID) $((Sum_Grass_NatLand > 0) AND (Land_Cover_SU(rSimUID,'OthNatLnd') > 0 )) = Land_Cover_SU(rSimUID,'OthNatLnd') / Sum_Grass_NatLand;
+$offtext
+
 * Initializing unknown shares
 X_VAR.UP(LC_TYPES_EPIC1,LC_TYPES_EPIC2,rSimUID) $((NOT sameas(LC_TYPES_EPIC1,LC_TYPES_EPIC2)) AND (SH1(LC_TYPES_EPIC1,LC_TYPES_EPIC2,rSimUID))) = 1 ;
 X_VAR.UP(LC_TYPES_EPIC1,LC_TYPES_EPIC2,rSimUID) $((NOT sameas(LC_TYPES_EPIC1,LC_TYPES_EPIC2)) AND (SH1(LC_TYPES_EPIC1,LC_TYPES_EPIC2,rSimUID)= 0)) = 0 ;
@@ -613,6 +690,12 @@ Land_Cover_SU(rSimUID,'SimUarea')
 Land_Cover_SU_tt(rSimUID,LC_TYPES_EPIC,ScenYear)
  = Land_Cover_SU(rSimUID,LC_TYPES_EPIC);
 
+* Update gdp and population
+xmat(rSimUID,REGION,"totPop") =  pop(rSimUID,MacroScen,"Total",scenYear) * trans_factors("totPop");
+xmat(rSimUID,REGION,"ruralPop") =  pop(rSimUID,MacroScen,"Rural",scenYear) * trans_factors("ruralPop");
+xmat(rSimUID,REGION,"ruralPop") =  pop(rSimUID,MacroScen,"Rural",scenYear) * trans_factors("ruralPop");
+xmat(rSimUID,REGION,"gdp_base") =  gdp(rSimUID,MacroScen,scenYear) * trans_factors("gdp_base");
+
 * Summary tables
 sum_Land_Cover_tt_after(REGION,LC_TYPES_EPIC,ScenYear)
  = SUM(rSimUID, Land_Cover_SU(rSimUID,LC_TYPES_EPIC));
@@ -637,8 +720,8 @@ Option kill= INTERM1_VAR ;
 ););
 
 Option clear = rSimUID ;
+Option kill= xmat;
 
-$ontext
 * PART 3: MAPPING TO G4Mm REPORTING
 PARAMETER
 Land_Cover_SU_Region_SCEN(REGION,SimUID,LC_TYPES_EPIC,MacroScen,BioenScen,IEA_SCEN,ScenYear);
@@ -648,7 +731,8 @@ Land_Cover_SU_Region(REGION,SimUID,LC_TYPES_EPIC,ScenYear) $(Land_Cover_SU_Regio
 Land_Cover_SU_Region_SCEN(REGION,SimUID,LC_TYPES_EPIC,MacroScen,BioenScen,IEA_SCEN,ScenYear) = Land_Cover_SU_Region(REGION,SimUID,LC_TYPES_EPIC,ScenYear) ;
 );
 
-*$include .\source\set_g4mIDsimUIDmap.gms
+
+$include .\source\set_g4mIDsimUIDmap.gms
 
 SET
 Rg4m_05_id(g4m_05_id);
@@ -687,6 +771,3 @@ LandCover_G4MID(Rg4m_05_id,MacroScen,IEA_SCEN,BioenScen,"% Reserved",ScenYear)
 execute_unload 'gdx\downscaled.gdx',
 Delta_fin, Delta_Init, Delta_LAND_Region, sum_Land_Cover_tt_after, Land_Cover_SU_Region, Land_Cover_SU_Region_SCEN, Delta_LAND_Region, LandCover_G4MID
 ;
-$offtext
-
-execute_unload 'temp_check.gdx';
