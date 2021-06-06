@@ -28,6 +28,8 @@ IEA_SCEN
 ScenYear
 ;
 
+
+
 PARAMETER
 LUC_COMPARE_SCEN0(*,*,*,*,*,*,*)
 Price_Compare2(*,*,*,*,*,*)
@@ -155,6 +157,7 @@ ScenNumber = ScenNumber+1;
 
 * PART 2: DOWNSCALING
 SCALAR delta /0.0001/ ;
+SCALAR max_exp /20/;
 SCALAR weight /10/ ;
 SET rSimUID(SimUID);
 ALIAS(rSimUID,i);
@@ -165,8 +168,6 @@ Delta_Opt(REGION,SimUID,LC_TYPES_EPIC,LC_TYPES_EPIC,BioenScen,ScenYear)
 Sum_LandUse_Aux(REGION,LC_TYPES_EPIC,ScenYear)
 * Used for calculating priors
 Aux_Grass_NatLand
-Aux_Grass_PltFor
-Aux_CrpLnd_PltFor
 AuxForest_Grass
 AuxForest_CrpLnd
 Aux_Nat_Land
@@ -237,6 +238,7 @@ Aus_SU(REGION,LC_TYPES_EPIC,ScenYear)
 Land_Pos(REGION,LC_TYPES_EPIC,SimUID,ScenYear)
 CHECK_X_SH(LC_TYPES_EPIC,LC_TYPES_EPIC,SimUID,ScenYear)
 CHECK_X_SH_ABS(SOL,LC_TYPES_EPIC,LC_TYPES_EPIC,SimUID,ScenYear)
+POSTERIOR_LUC(LC_TYPES_EPIC,LC_TYPES_EPIC,SimUID)
 ;
 
 *option DOWNSCALE_07_01_12.holdfixed = 1 ;
@@ -270,9 +272,9 @@ SQRDIFF_EQU..
          (DDelta(LC_TYPES_EPIC1,LC_TYPES_EPIC2) > 0)),
         sqr(X_VAR(LC_TYPES_EPIC1,LC_TYPES_EPIC2)) )
 * Minimize any mismatches (Dummy_VAR) in AGGR_EQ
-   + (sum((LC_TYPES_EPIC1,LC_TYPES_EPIC2)
+   + weight*(sum((LC_TYPES_EPIC1,LC_TYPES_EPIC2)
        $(DDelta(LC_TYPES_EPIC1,LC_TYPES_EPIC2) > 0) ,
-       weight*sqr(DUMMY_VAR(LC_TYPES_EPIC1,LC_TYPES_EPIC2))) );
+       sqr(DUMMY_VAR(LC_TYPES_EPIC1,LC_TYPES_EPIC2))) );
 
 * Makes sure that MU = exp(X + Xb)
 MU_EQ(LC_TYPES_EPIC1,LC_TYPES_EPIC2,rSimUID)
@@ -431,8 +433,7 @@ SH1(LC_TYPES_EPIC,LC_TYPES_EPIC2,rSimUID)$(DDelta(LC_TYPES_EPIC,LC_TYPES_EPIC2) 
                           xmat(rSimUID,REGION,coeff_variable) *
                           luc_downscl_coeff(REGION,LC_TYPES_EPIC,LC_TYPES_EPIC2,coeff_variable));
 
-execute_unload 'temp_check.gdx';
-$exit
+
 *************************
 Sum_Product(REGION) = 0 ;
 Sum_Product(REGION)
@@ -453,11 +454,10 @@ Sum_Inv_Prod_NatLand(REGION)
 Sh_Inv_Prod_NatLand(rSimUID) $((Sum_Inv_Prod_NatLand(REGION)>0) AND (Land_Cover_SU(rSimUID,'CrpLnd') > 0)) = Inv_Prod_SU(rSimUID) / (Sum_Inv_Prod_NatLand(REGION)) ;
 
 * 'CrpLnd' to 'PltFor'
-Aux_CrpLnd_PltFor =
- sum((rSimUID) $((AreaWeighted_Product_Tot(rSimUID) >0) AND (Inv_Trans_Cost(rSimUID) >0) AND (Land_Cover_SU(rSimUID,'CrpLnd') > 0)) , PltForSimUnit(rSimUID)*(1/(Inv_Trans_Cost(rSimUID)*AreaWeighted_Product_Tot(rSimUID)))) ;
 SH1('CrpLnd','PltFor',rSimUID) = 0 ;
-SH1('CrpLnd','PltFor',rSimUID) $((Aux_CrpLnd_PltFor > 0) AND (AreaWeighted_Product_Tot(rSimUID) >0) AND (Inv_Trans_Cost(rSimUID) >0) AND (Land_Cover_SU(rSimUID,'CrpLnd') > 0))
-  = PltForSimUnit(rSimUID)*(1/(Inv_Trans_Cost(rSimUID)*AreaWeighted_Product_Tot(rSimUID))) / Aux_CrpLnd_PltFor ;
+SH1('CrpLnd','PltFor',rSimUID) $((AreaWeighted_Product_Tot(rSimUID) >0) AND (Inv_Trans_Cost(rSimUID) >0) AND (Land_Cover_SU(rSimUID,'CrpLnd') > 0))
+  = PltForSimUnit(rSimUID)*(1/(Inv_Trans_Cost(rSimUID)*AreaWeighted_Product_Tot(rSimUID)));
+
 
 * 'Grass' to 'CrpLnd'
 Sum_AreaWeighted_Product_Tot = sum(rSimUID $(Land_Cover_SU(rSimUID,'Grass') > 0), Land_Cover_SU(rSimUID,'Grass')) ;
@@ -467,47 +467,14 @@ Inv_Grass_Prod(rSimUID) $(Grass_Yield_SU(rSimUID)>0) = 1/ (Grass_Yield_SU(rSimUI
 Sum_Inv_Grass_Prod(REGION)= sum (rSimUID $(Land_Cover_SU(rSimUID,'Grass')>0), Inv_Grass_Prod(rSimUID)) ;
 Sh_Inv_Grass_Prod(rSimUID) $((Sum_Inv_Grass_Prod(REGION)>0) AND (Land_Cover_SU(rSimUID,'Grass')>0)) = Inv_Grass_Prod(rSimUID) / (Sum_Inv_Grass_Prod(REGION)) ;
 
-Aux_Grass_PltFor
- = sum((rSimUID) $((Inv_Grass_Prod(rSimUID)>0) AND (PltForSimUnit(rSimUID) >0) AND (Land_Cover_SU(rSimUID,'Grass') > 0)) , Land_Cover_SU(rSimUID,'Grass') ) ;
 
 SH1('Grass','PltFor',rSimUID) = 0 ;
-SH1('Grass','PltFor',rSimUID) $((Aux_Grass_PltFor > 0) AND (Inv_Grass_Prod(rSimUID)>0) AND (PltForSimUnit(rSimUID) >0) AND (Land_Cover_SU(rSimUID,'Grass') > 0)) = Land_Cover_SU(rSimUID,'Grass') / Aux_Grass_PltFor ;
-
-* 'Grass' to 'OthNatLnd'
-Inv_Grass_Prod(rSimUID) $(Grass_Yield_SU(rSimUID)>0) = 1/ (Grass_Yield_SU(rSimUID)) ;
-Sum_Inv_Grass_Prod(REGION)= sum (rSimUID $(Land_Cover_SU(rSimUID,'Grass')>0), Inv_Grass_Prod(rSimUID)) ;
-Sh_Inv_Grass_Prod(rSimUID) $((Sum_Inv_Grass_Prod(REGION)>0) AND (Land_Cover_SU(rSimUID,'Grass')>0)) = Inv_Grass_Prod(rSimUID) / (Sum_Inv_Grass_Prod(REGION)) ;
-
-Aux_Grass_NatLand = 0 ;
-Aux_Grass_NatLand
- = sum((rSimUID) $(Land_Cover_SU(rSimUID,'Grass') > 0) , Land_Cover_SU(rSimUID,'Grass') ) ;
-
+SH1('Grass','PltFor',rSimUID) $((Inv_Grass_Prod(rSimUID)>0) AND (PltForSimUnit(rSimUID) >0) AND (Land_Cover_SU(rSimUID,'Grass') > 0)) = Land_Cover_SU(rSimUID,'Grass')  ;
 
 * 'PltFor' to 'OthNatLnd'
 SH1('PltFor','OthNatLnd',rSimUID) = 0 ;
 SH1('PltFor','OthNatLnd',rSimUID) = Sh_Inv_Trans_Cost(rSimUID)  ;
 
-* 'Forest' to 'CrpLnd'
-AuxForest_CrpLnd = 0;
-AuxForest_CrpLnd
- = sum( (rSimUID) $((Land_Cover_SU(rSimUID,'Forest') > 0 ) AND (MngForest_Param(rSimUID,'CurN','HarvWood') >0) AND (MngForest_Param(rSimUID,'CurN','HarvCost') >0)) , MngForest_Param(rSimUID,'CurN','HarvCost') * (1/(Land_Cover_SU(rSimUID,'Forest')*MngForest_Param(rSimUID,'CurN','HarvWood')))*Inv_Trans_Cost(rSimUID)*AreaWeighted_Product_Tot(rSimUID)) ;
-
-
-* 'Forest' to 'Grass'
-AuxForest_Grass = 0;
-AuxForest_Grass
- = sum((rSimUID) $(Land_Cover_SU(rSimUID,'Forest') > 0 ) , Land_Cover_SU(rSimUID,'Forest')) ;
-
-* 'OthNatLnd' to 'CrpLnd'
-Sum_Product_NatLand = 0 ;
-Sum_Product_NatLand
- = sum (rSimUID $(Land_Cover_SU(rSimUID,'OthNatLnd') > 0 ), Inv_Trans_Cost(rSimUID)*AreaWeighted_Product_Tot(rSimUID)) ;
-
-Aux(rSimUID) $(Land_Cover_SU(rSimUID,'OthNatLnd') > 0 ) =  Inv_Trans_Cost(rSimUID)*AreaWeighted_Product_Tot(rSimUID) ;
-
-* 'OthNatLnd' to 'Grass'
-Sum_Grass_NatLand =0 ;
-Sum_Grass_NatLand = sum (rSimUID $(Land_Cover_SU(rSimUID,'OthNatLnd') > 0 ), Land_Cover_SU(rSimUID,'OthNatLnd')) ;
 
 * 'OthNatLnd' to 'PltFor'
 PltForSum_NatLand = 0 ;
@@ -516,66 +483,52 @@ PltForSum_NatLand = sum(rSimUID $(Land_Cover_SU(rSimUID,'OthNatLnd') > 0.0), Plt
 SH1('OthNatLnd','PltFor',rSimUID) = 0 ;
 SH1('OthNatLnd','PltFor',rSimUID) $((PltForSum_NatLand >0) AND (Land_Cover_SU(rSimUID,'OthNatLnd') > 0.0))  = PltForSimUnit(rSimUID)/PltForSum_NatLand ;
 
+* Ensure that priors don't produce numerical infinities
+SH1(LC_TYPES_EPIC1,LC_TYPES_EPIC2,rSimUID)$(
+                         (NOT sameas(LC_TYPES_EPIC1,LC_TYPES_EPIC2)) AND
+                         SH1(LC_TYPES_EPIC1,LC_TYPES_EPIC2,rSimUID) > max_exp) = max_exp;
+SH1(LC_TYPES_EPIC1,LC_TYPES_EPIC2,rSimUID)$(
+                         (NOT sameas(LC_TYPES_EPIC1,LC_TYPES_EPIC2)) AND
+                         SH1(LC_TYPES_EPIC1,LC_TYPES_EPIC2,rSimUID) < -max_exp) = -max_exp;
 
-$ontext
-* Crop to Grass land
-SH1('CrpLnd','Grass',rSimUID)  = 0 ;
-SH1('CrpLnd','Grass',rSimUID)  = Sh_Inv_Prod(rSimUID) ;
+X_VAR.UP(LC_TYPES_EPIC1,LC_TYPES_EPIC2)$(
+                         (NOT sameas(LC_TYPES_EPIC1,LC_TYPES_EPIC2)) AND
+                         DDelta(LC_TYPES_EPIC1,LC_TYPES_EPIC2)>0)  = max_exp;
+X_VAR.L(LC_TYPES_EPIC1,LC_TYPES_EPIC2) = 0 ;
+X_VAR.LO(LC_TYPES_EPIC1,LC_TYPES_EPIC2)$(
+                         (NOT sameas(LC_TYPES_EPIC1,LC_TYPES_EPIC2)) AND
+                         DDelta(LC_TYPES_EPIC1,LC_TYPES_EPIC2)>0)  = -max_exp;
 
-SH1('CrpLnd','OthNatLnd',rSimUID) = 0 ;
-SH1('CrpLnd','OthNatLnd',rSimUID)= Sh_Inv_Prod_NatLand(rSimUID) ;
-
-SH1('Grass','CrpLnd',rSimUID) = 0 ;
-SH1('Grass','CrpLnd',rSimUID)  $((Sum_AreaWeighted_Product_Tot > 0) AND (Land_Cover_SU(rSimUID,'Grass') >0))  = Land_Cover_SU(rSimUID,'Grass') / Sum_AreaWeighted_Product_Tot ;
-
-SH1('Grass','OthNatLnd',rSimUID) = 0 ;
-SH1('Grass','OthNatLnd',rSimUID) = Land_Cover_SU(rSimUID,'Grass')/Aux_Grass_NatLand  ;
-
-SH1('Forest','CrpLnd',rSimUID) = 0;
-SH1('Forest','CrpLnd',rSimUID) $((Land_Cover_SU(rSimUID,'Forest') > 0 ) AND (MngForest_Param(rSimUID,'CurN','HarvWood') >0) AND (MngForest_Param(rSimUID,'CurN','HarvCost') >0) AND (AuxForest_CrpLnd >0)) = MngForest_Param(rSimUID,'CurN','HarvCost')* (1/(Land_Cover_SU(rSimUID,'Forest')*MngForest_Param(rSimUID,'CurN','HarvWood')))*Inv_Trans_Cost(rSimUID)*AreaWeighted_Product_Tot(rSimUID) / AuxForest_CrpLnd ;
-
-SH1('Forest','Grass',rSimUID) = 0 ;
-SH1('Forest','Grass',rSimUID) $(Land_Cover_SU(rSimUID,'Forest') > 0 ) = Land_Cover_SU(rSimUID,'Forest') / AuxForest_Grass ;
-
-SH1('OthNatLnd','CrpLnd',rSimUID) = 0 ;
-SH1('OthNatLnd','CrpLnd',rSimUID) $((Sum_Product_NatLand > 0) AND (Land_Cover_SU(rSimUID,'OthNatLnd') > 0 )) = Aux(rSimUID) /Sum_Product_NatLand ;
-
-SH1('OthNatLnd','Grass',rSimUID) = 0 ;
-SH1('OthNatLnd','Grass',rSimUID) $((Sum_Grass_NatLand > 0) AND (Land_Cover_SU(rSimUID,'OthNatLnd') > 0 )) = Land_Cover_SU(rSimUID,'OthNatLnd') / Sum_Grass_NatLand;
-$offtext
-
-* Initializing unknown shares
-X_VAR.UP(LC_TYPES_EPIC1,LC_TYPES_EPIC2,rSimUID) $((NOT sameas(LC_TYPES_EPIC1,LC_TYPES_EPIC2)) AND (SH1(LC_TYPES_EPIC1,LC_TYPES_EPIC2,rSimUID))) = 1 ;
-X_VAR.UP(LC_TYPES_EPIC1,LC_TYPES_EPIC2,rSimUID) $((NOT sameas(LC_TYPES_EPIC1,LC_TYPES_EPIC2)) AND (SH1(LC_TYPES_EPIC1,LC_TYPES_EPIC2,rSimUID)= 0)) = 0 ;
-X_VAR.LO(LC_TYPES_EPIC1,LC_TYPES_EPIC2,rSimUID) $((NOT sameas(LC_TYPES_EPIC1,LC_TYPES_EPIC2)) AND (SH1(LC_TYPES_EPIC1,LC_TYPES_EPIC2,rSimUID))) = 0 ;
-X_VAR.L(LC_TYPES_EPIC1,LC_TYPES_EPIC2,rSimUID)  $((NOT sameas(LC_TYPES_EPIC1,LC_TYPES_EPIC2)) AND (SH1(LC_TYPES_EPIC1,LC_TYPES_EPIC2,rSimUID))) = SH1(LC_TYPES_EPIC1,LC_TYPES_EPIC2,rSimUID) ;
+MU_VAR.L(LC_TYPES_EPIC1,LC_TYPES_EPIC2,rSimUID)$(DDelta(LC_TYPES_EPIC1,LC_TYPES_EPIC2) > 0) = exp(SH1(LC_TYPES_EPIC1,LC_TYPES_EPIC2,rSimUID));
+MU_VAR.UP(LC_TYPES_EPIC1,LC_TYPES_EPIC2,rSimUID)$(DDelta(LC_TYPES_EPIC1,LC_TYPES_EPIC2) > 0) = exp(max_exp);
 
 Sh(REGION,rSimUID, LC_TYPES_EPIC1,LC_TYPES_EPIC2,BioenScen,ScenYear)
  = SH1(LC_TYPES_EPIC1,LC_TYPES_EPIC2,rSimUID);
 
 *option iterlim = 2000 ;
 *option optcr   = 0.0001;
+option DNLP = CONOPT4;
 
-SOLVE ENTROPYMAX USING NLP MINIMIZING Z_VAR ;
+*SOLVE SQRDIFFMAX USING NLP MINIMIZING Z_VAR ;
+SOLVE SQRDIFFMAX USING DNLP MINIMIZING Z_VAR;
+
+* Summarize the results
+POSTERIOR_LUC(LC_TYPES_EPIC1,LC_TYPES_EPIC2,rSimUID)
+ $((DDelta(LC_TYPES_EPIC1,LC_TYPES_EPIC2) > 0) AND
+   (NOT sameas(LC_TYPES_EPIC1,LC_TYPES_EPIC2)))
+ = ( MU_VAR.L(LC_TYPES_EPIC1,LC_TYPES_EPIC2,rSimUID) ) /
+         (1 +  SUM(LC_TYPES_EPIC$(DDelta(LC_TYPES_EPIC1,LC_TYPES_EPIC) > 0),(  MU_VAR.L(LC_TYPES_EPIC1,LC_TYPES_EPIC,rSimUID)  ))) *
+      Land_Cover_SU(rSimUID,LC_TYPES_EPIC1);
 
 Delta_fin(REGION,LC_TYPES_EPIC1,LC_TYPES_EPIC2,ScenYear)
  $((DDelta(LC_TYPES_EPIC1,LC_TYPES_EPIC2) > 0) AND
    (NOT sameas(LC_TYPES_EPIC1,LC_TYPES_EPIC2)))
- = SUM(rSimUID
-      $(X_VAR.l(LC_TYPES_EPIC1,LC_TYPES_EPIC2,rSimUID) >0),
-   X_VAR.l(LC_TYPES_EPIC1,LC_TYPES_EPIC2,rSimUID)
-  *DDelta(LC_TYPES_EPIC1,LC_TYPES_EPIC2)
-         $(SH1(LC_TYPES_EPIC1,LC_TYPES_EPIC2,rSimUID))) ;
+ = sum(rSimUID, POSTERIOR_LUC(LC_TYPES_EPIC1,LC_TYPES_EPIC2,rSimUID)) ;
+
 
 Delta_LAND(LC_TYPES_EPIC1,rSimUID,ScenYear)
- = - SUM(LC_TYPES_EPIC2,
-     X_VAR.l(LC_TYPES_EPIC1,LC_TYPES_EPIC2,rSimUID)
-    *DDelta(LC_TYPES_EPIC1,LC_TYPES_EPIC2)
-         $(SH1(LC_TYPES_EPIC1,LC_TYPES_EPIC2,rSimUID)))
-   + SUM(LC_TYPES_EPIC2,
-     X_VAR.l(LC_TYPES_EPIC2,LC_TYPES_EPIC1,rSimUID)
-    *DDelta(LC_TYPES_EPIC2,LC_TYPES_EPIC1)
-         $(SH1(LC_TYPES_EPIC2,LC_TYPES_EPIC1,rSimUID)));
+ = - SUM(LC_TYPES_EPIC2, POSTERIOR_LUC(LC_TYPES_EPIC1,LC_TYPES_EPIC2,rSimUID) )
+   + SUM(LC_TYPES_EPIC2, POSTERIOR_LUC(LC_TYPES_EPIC2,LC_TYPES_EPIC1,rSimUID) );
 
 Delta_LAND_Region(REGION,LC_TYPES_EPIC1,ScenYear)
  = SUM(rSimUID
@@ -610,20 +563,17 @@ sum_Land_Cover_tt_after(REGION,LC_TYPES_EPIC,ScenYear)
 Land_Cover_SU_Region(REGION,rSimUID,LC_TYPES_EPIC,ScenYear)=0 ;
 Land_Cover_SU_Region(REGION,rSimUID,LC_TYPES_EPIC,ScenYear)
  = Land_Cover_SU(rSimUID,LC_TYPES_EPIC);
-
 * "Clean" variables for the next itteration/loop
 Option kill= X_VAR;
 Option kill= Z_VAR;
-Option kill= ENTROPY_EQU ;
+Option kill= MU_VAR;
 Option kill= SH1 ;
-Option kill= SH_EQU;
-Option kill= Sum_LAND_SU_EQU;
+Option kill= SQRDIFF_EQU ;
+Option kill= MU_EQ;
+Option kill= AGGR_EQ;
 Option kill= Land_Cover_SU;
-Option kill= Land_Positive_SU_EQU;
-Option kill= Delta_Land_00_EQU;
 Option kill= DDelta ;
-Option kill= INTERM1_VAR ;
-
+Option kill= POSTERIOR_LUC;
 ););
 
 Option clear = rSimUID ;
