@@ -1,0 +1,17 @@
+ Volume in drive P is export
+ Volume Serial Number is C2DD-4A4E
+
+ Directory of P:\globiom\Projects\RLUC\Downscaling\Codes\Estimation\Cluster\Downscaling
+
+01/21/2020  11:55 AM    <DIR>          .
+01/21/2020  11:06 AM    <DIR>          ..
+01/21/2020  11:02 AM             1,518 cluster_estimation.R
+01/21/2020  11:09 AM    <DIR>          Condor
+01/21/2020  11:42 AM             1,696 config.R
+01/13/2020  09:51 AM             1,151 generate_xlsx_output.R
+01/21/2020  11:07 AM    <DIR>          input
+01/21/2020  11:10 AM    <DIR>          output
+01/21/2020  11:55 AM               159 R
+01/07/2020  06:11 PM               540 test.bat
+               5 File(s)          5,064 bytes
+               5 Dir(s)  11,175,104,634,880 bytes free
