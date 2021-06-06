@@ -17,7 +17,7 @@ You can obtain the repository URL by clicking on the 'Code' drop-down menu at th
 
 The prior module is dependent on R, particularly the BayesLogit package.
 
-The downscaling module itself requries a GAMS installation, with a valid NLS solver license.
+The downscaling module itself requries a GAMS installation, with a valid NLS solver license (for 1_downscaling.gms and 1_downscalingEconometric.gms) and a CONOPT4 license for 1_downscalingEconometricMNL.gms.
 
 # Running DownScale
 
@@ -32,5 +32,11 @@ Either the file 1_downscaling.gms (for using only non-estimated priors) or 1_dow
 Change in respective script at line 37 which GLOBIOM file to load.
 
 # Choosing the right script
+
+The econometric priors (1_downscalingEconometric.gms) are the current best practice to run (as they produce the closest to relaistic maps).
+
+- 1_downscaling.gms relies entirely on non-estimated modeller defined priors and uses a maximum entropy downscaler.
+- 1_downscalingEconometric.gms uses ESA-CCI land-use change data in 2000-2010 to calibrate prior dynamics between cropland, grassland, forest and other natural vegetation and uses a maximum entropy downscaler.
+- 1_downscalingEconometricMNL.gms relies on above calibrated priors, but uses a squared differences downscaler, with a multinomial model specification (it is the fastest).
 
 For guidance see the documentation here: https://bit.ly/3fiLG3u
