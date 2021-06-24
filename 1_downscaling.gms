@@ -1,7 +1,7 @@
 * PART 1: READ INPUT AND PRECOMPUTE PARAMETERS
-$if not set $set project  SSPxRCP
-$if not set $set lab      16042021
-$if not set $set gdx_path "gdx/downscaled.gdx"
+$if not set project  $set project  SSPxRCP
+$if not set lab      $set lab      16042021
+$if not set gdx_path $set gdx_path "gdx/downscaled.gdx"
 
 * Limpopo counter
 $if not set nsim $set nsim 0
