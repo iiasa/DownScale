@@ -1,6 +1,7 @@
 * PART 1: READ INPUT AND PRECOMPUTE PARAMETERS
-$setglobal project SSPxRCP
-$setglobal lab     16042021
+$if not set $set project  SSPxRCP
+$if not set $set lab      16042021
+$if not set $set gdx_path "gdx/downscaled.gdx"
 
 * Limpopo counter
 $if not set nsim $set nsim 0
@@ -625,6 +626,6 @@ LandCover_G4MID(Rg4m_05_id,MacroScen,IEA_SCEN,BioenScen,"% Reserved",ScenYear)
   /LandCover_G4MID(Rg4m_05_id,MacroScen,IEA_SCEN,BioenScen,"TotLndnew",ScenYear);
 
 
-execute_unload 'gdx\downscaled.gdx',
+execute_unload '%gdx_path%',
 Delta_fin, Delta_Init, Delta_LAND_Region, sum_Land_Cover_tt_after, Land_Cover_SU_Region, Land_Cover_SU_Region_SCEN, Delta_LAND_Region, LandCover_G4MID
 ;
