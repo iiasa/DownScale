@@ -20,3 +20,6 @@
 *.~gm
 *.~gm
 *.~gm
+.Rproj.user
+.Rhistory
+*.Rproj
