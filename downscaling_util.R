@@ -1,9 +1,8 @@
 #### MNL logit type share data downscaling ###
-
-rm(list=ls())
 require(nloptr)
 require(tidyr)
 require(dplyr)
+require(tibble)
 
 MAX_EXP = 200
 
@@ -29,7 +28,7 @@ areas.sum_to = function(res, curr.areas, priors, xmat, xmat.proj) {
     summarize(value = sum(value),.groups = "keep") %>% 
     rename("lu.from" = "lu.to")
   # correct for small numerical mistakes
-  if (any(curr.areas$value < -10^-10)) {
+  if (min(curr.areas$value) < 0 && min(curr.areas$value) > -10^-10) {
     curr.areas$value[curr.areas$value < 0] = 0
   }
   return(curr.areas)
@@ -70,9 +69,9 @@ downscale = function(targets,start.areas,xmat,betas,
     proj.colnames = colnames(xmat)[xmat.coltypes == "projected"]
     if (is.null(xmat.proj)) {stop(paste0(err.txt,"Columns are specified as projected, but xmat.proj missing."))}
     chck.xmat = expand.grid(times = unique(targets$times), Ks = colnames(xmat)[xmat.coltypes == "projected"]) %>% 
-                  left_join(
-                    xmat.proj %>% group_by(times,Ks) %>% summarize(n = n(),.groups = "keep"),by = c("times", "Ks")
-                  )
+      left_join(
+        xmat.proj %>% group_by(times,Ks) %>% summarize(n = n(),.groups = "keep"),by = c("times", "Ks")
+      )
     if (any(is.na(chck.xmat$n))) {stop(paste0(err.txt,"xmat.proj must provide values for all times and projected Ks."))}
   }
   if (any(xmat.coltypes == "dynamic") && is.null(xmat.dyn.fun)) {
@@ -92,8 +91,8 @@ downscale = function(targets,start.areas,xmat,betas,
     curr.targets = filter(targets,times == curr.time) %>% select(-times)
     
     res = downscale.mnl.multeq(targets = curr.targets,areas = curr.areas,
-                    xmat = curr.xmat,betas = betas,priors = curr.priors,
-                    restrictions=curr.restrictions,err.txt = paste0(curr.time,"-"))
+                               xmat = curr.xmat,betas = betas,priors = curr.priors,
+                               restrictions=curr.restrictions,err.txt = paste0(curr.time,"-"))
     out.solver[[curr.time]] = res$out.solver
     
     # update curr.area
@@ -119,7 +118,6 @@ downscale = function(targets,start.areas,xmat,betas,
       out.res = bind_rows(out.res,res.agg)
     }
   }
-  
   return(list(out.res = out.res,out.solver = out.solver))
 }
 
@@ -171,8 +169,8 @@ downscale.mnl.multeq = function(targets,areas,xmat,betas,priors = NULL,restricti
     
     # Extract betas
     curr.betas = filter(betas,lu.from == curr.lu.from) %>% 
-            pivot_wider(names_from = lu.to,values_from = value,id_cols = Ks) %>% 
-            column_to_rownames(var = "Ks")
+      pivot_wider(names_from = lu.to,values_from = value,id_cols = Ks) %>% 
+      column_to_rownames(var = "Ks")
     curr.betas = as.matrix(curr.betas)
     
     # Extract xmat
@@ -205,12 +203,12 @@ downscale.mnl.multeq = function(targets,areas,xmat,betas,priors = NULL,restricti
     
     res<- downscale.mnl(targets=curr.targets,areas=curr.areas,xmat=curr.xmat,
                         betas=curr.betas,priors = curr.priors,restrictions = curr.restrictions,
-                        err.txt = paste0(curr.lu.from,": "))
+                        err.txt = paste0(err.txt,curr.lu.from,": "))
     out.solver[[curr.lu.from]] = res$out.solver
     
     # add residual own flows in output
     res$out.res2 = data.frame(ns = names(curr.areas),
-      curr.areas - rowSums(res$out.res),res$out.res)
+                              curr.areas - rowSums(res$out.res),res$out.res)
     colnames(res$out.res2)[2] = paste0(curr.lu.from)
     # pivot into long format
     res.agg <- data.frame(
@@ -288,23 +286,25 @@ downscale.mnl = function(targets,areas,xmat,betas,priors = NULL,restrictions=NUL
   # remove targets that are all zero
   not.zero = (targets != 0)
   if (!all(not.zero)) {
+    if (all(targets == 0)) {return(list(out.res = out.res, out.solver = NULL))}
     targets = targets[not.zero]
     priors.mu = priors.mu[,not.zero,drop = FALSE]
+    if (!is.null(restrictions)) {restr.mat = restr.mat[,not.zero,drop = FALSE]}
   }
   x0 = targets / sum(targets + 1)
   opts <- list(#"algorithm" = "NLOPT_LN_SBPLX",
-               # "algorithm" = "NLOPT_LN_NELDERMEAD",
-            "algorithm" = "NLOPT_LN_SBPLX",
-              #"local_opts" = list("algorithm" = "NLOPT_LN_SBPLX","xtol_rel" = 1.0e-7),
-               "xtol_rel" = 1.0e-20,
-            "xtol_abs" = 1.0e-20,
-               "maxeval" = 1600
-               )
+    # "algorithm" = "NLOPT_LN_NELDERMEAD",
+    "algorithm" = "NLOPT_LN_SBPLX",
+    #"local_opts" = list("algorithm" = "NLOPT_LN_SBPLX","xtol_rel" = 1.0e-7),
+    "xtol_rel" = 1.0e-20,
+    "xtol_abs" = 1.0e-20,
+    "maxeval" = 1600
+  )
   redo = TRUE; countr = 1;
   while (redo) {
     res.x = nloptr(x0,optim.fun.mnl,
                    lb = rep(10^-20,length(x0)),opts=opts,ub = rep(exp(MAX_EXP),length(x0)),
-                 mu = priors.mu,areas = areas,targets = targets,restrictions = restrictions)
+                   mu = priors.mu,areas = areas,targets = targets,restrictions = restr.mat)
     if (res.x$objective < 10^-8 || countr > 3) {
       redo =FALSE
       res.x$par = res.x$solution
@@ -313,7 +313,7 @@ downscale.mnl = function(targets,areas,xmat,betas,priors = NULL,restrictions=NUL
       x0 = res.x$solution
     }
   }
-  out.mu = mnl.mu(res.x$solution[1:length(targets)],priors.mu,areas,restrictions)
+  out.mu = mnl.mu(res.x$solution[1:length(targets)],priors.mu,areas,restr.mat)
   if (all(not.zero)) {out.res = out.mu
   } else {out.res[,not.zero] = out.mu}
   return(list(out.res = out.res, out.solver = res.x))
@@ -369,7 +369,7 @@ downscale.mnl = function(targets,areas,xmat,betas,priors = NULL,restrictions=NUL
 # restrictions = cbind(restrictions,value = sample(c(0,1),nrow(restrictions),replace = TRUE,prob = c(.7,.3)))
 # restrictions = subset(restrictions,paste0(lu.from) != paste0(lu.to))
 # 
-# dynamic_update.fun = function(res, curr.areas, priors, xmat, xmat.proj) {
+# my.fun = function(res, curr.areas, priors, xmat, xmat.proj) {
 #   tmp.mat = curr.areas %>% pivot_wider(names_from = lu.from,values_from = value)
 #   tmp.mat = as.matrix(tmp.mat[match(row.names(xmat),tmp.mat$ns),-1])
 #   return(tmp.mat)
@@ -378,7 +378,7 @@ downscale.mnl = function(targets,areas,xmat,betas,priors = NULL,restrictions=NUL
 # res1 = downscale(targets = targets,start.areas = start.areas,xmat = xmat,
 #                  betas = betas,
 #                  xmat.coltypes = c(rep("dynamic",3),rep("static",4),"projected"),
-#                  xmat.proj = xmat.proj,xmat.dyn.fun = dynamic_update.fun,
+#                  xmat.proj = xmat.proj,xmat.dyn.fun = my.fun,
 #                  restrictions = restrictions,priors = priors)
 # print(
 # targets %>%
@@ -393,4 +393,3 @@ downscale.mnl = function(targets,areas,xmat,betas,priors = NULL,restrictions=NUL
 #   left_join(restrictions %>% rename("restr" = "value"),by = c("lu.from", "ns", "lu.to"))  %>%
 #   filter(restr == 1)
 # cat("Restrictions: ",all(test.restrictions$value == 0),"\n")
-
