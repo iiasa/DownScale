@@ -11,6 +11,7 @@ $set nsim %nsim%
 Option limrow=0;
 Option limcol=0;
 Option profile=1;
+Option IterLim = 2000;
 FILE Results_SCEN;
 FILE Results_Reg;
 
@@ -69,7 +70,7 @@ $GDXIN
 
 * Base year 2000 land use GEOBENE data rescaled to match GLOBIOMsol numbers at regional level
 PARAMETER LUC_Fin(*,*);
-$GDXIN .\source\LUC_Fin_Write_SSP2_msg07.gdx
+$GDXIN .\source\LUC_Fin_Write_SSP2_msg07Ukraine37R.gdx
 $LOAD LUC_Fin
 $GDXIN
 
@@ -209,12 +210,15 @@ LndP_VAR(LC_TYPES_EPIC,SimUID)
 
 EQUATIONS
 ENTROPY_EQU                                              Cross-entropy equation
+INTERMEq1(LC_TYPES_EPIC,LC_TYPES_EPIC,SimUID)
 SH_EQU(LC_TYPES_EPIC,LC_TYPES_EPIC)
 Sum_LAND_SU_EQU(SimUID)                                  Total land in sim unit equals to SimUarea
 Land_Positive_SU_EQU(LC_TYPES_EPIC,SimUID)
 Delta_Land_00_EQU(LC_TYPES_EPIC)
 ;
 
+INTERMEq1(LC_TYPES_EPIC1,LC_TYPES_EPIC2,rSimUID)$( (NOT sameas(LC_TYPES_EPIC1,LC_TYPES_EPIC2)) AND (SH1(LC_TYPES_EPIC1,LC_TYPES_EPIC2,rSimUID)>0) AND (DDelta(LC_TYPES_EPIC1,LC_TYPES_EPIC2) >0)) ..
+INTERM1_VAR(LC_TYPES_EPIC1,LC_TYPES_EPIC2,rSimUID) =E=  (X_VAR(LC_TYPES_EPIC1,LC_TYPES_EPIC2,rSimUID)+delta)*LOG(X_VAR(LC_TYPES_EPIC1,LC_TYPES_EPIC2,rSimUID) +delta)-X_VAR(LC_TYPES_EPIC1,LC_TYPES_EPIC2,rSimUID)*LOG(SH1(LC_TYPES_EPIC1,LC_TYPES_EPIC2,rSimUID) + delta)  ;
 
 ENTROPY_EQU..
   Z_VAR
@@ -316,6 +320,7 @@ Delta_Land_00_EQU(LC_TYPES_EPIC1)
   - DDelta(LC_TYPES_EPIC1,LC_TYPES_EPIC2));
 
 MODEL ENTROPYMAX/
+      INTERMEq1
       ENTROPY_EQU
       SH_EQU
       Sum_LAND_SU_EQU
