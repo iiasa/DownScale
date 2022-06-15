@@ -381,6 +381,7 @@ for(scen in scenarios){
     downscale(
       targets = DDelta %>% mutate(lu.from=recode(lu.from,"PriFor"="Forest"),
                                   lu.to  =recode(lu.to  ,"MngFor"="Forest")),
+      init.areas,
       xmat,
       betas = betas,
       priors = curr.SRP_Suit,
