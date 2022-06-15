@@ -1,6 +1,8 @@
 ## package loading
 
-environment(.libPaths)$.lib.loc = c(renv::paths$library(),environment(.libPaths)$.lib.loc)
+environment(.libPaths)$.lib.loc = c(
+  "renv/library/R-4.0/x86_64-w64-mingw32",
+  environment(.libPaths)$.lib.loc)
 
 require("gdxrrw")
 require(tidyr)
@@ -98,51 +100,51 @@ Price_Compare2 <-
          year = as.integer(as.character(year)))
 
 transportation <-
-  read.csv(file = "./input/acc_mean_travel_minutes_simu.csv")
+  read.csv(file = "./source/acc_mean_travel_minutes_simu.csv")
 
-grasyield <- read_table("input/data_GrasYield_X.gms")
+grasyield <- read_table("source/data_GrasYield_X.gms")
 grasyield <-
   grasyield[, c(1, 2)] %>% `colnames<-`(c("SimUID", "grasyield"))
 grasyield$SimUID <- gsub("\\..*", "", grasyield$SimUID)
 
 MngForest_Param <-
-  rgdx.param(file.path(paste0("input/Forestparameters")), "MngForest_Param") %>%
+  rgdx.param(file.path(paste0("source/Forestparameters")), "MngForest_Param") %>%
   setNames(c("SimUID", "junk" , "variable" , "value")) %>% mutate(across(everything(), as.character)) %>%
   mutate(value = as.numeric(value))
 
-pop1 <- rgdx.param(file.path(paste0("input/pop_SSP1")), "pop") %>%
+pop1 <- rgdx.param(file.path(paste0("source/pop_SSP1")), "pop") %>%
   setNames(c("SimUID", "SCEN1" , "variable" , "year" , "value")) %>% mutate(across(everything(), as.character)) %>%
   mutate(value = as.numeric(value),
          year = as.integer(as.character(year)))
 
-pop2 <- rgdx.param(file.path(paste0("input/pop_SSP2")), "pop") %>%
+pop2 <- rgdx.param(file.path(paste0("source/pop_SSP2")), "pop") %>%
   setNames(c("SimUID", "SCEN1" , "variable" , "year" , "value")) %>% mutate(across(everything(), as.character)) %>%
   mutate(value = as.numeric(value),
          year = as.integer(as.character(year)))
 
-pop3 <- rgdx.param(file.path(paste0("input/pop_SSP3")), "pop") %>%
+pop3 <- rgdx.param(file.path(paste0("source/pop_SSP3")), "pop") %>%
   setNames(c("SimUID", "SCEN1" , "variable" , "year" , "value")) %>% mutate(across(everything(), as.character)) %>%
   mutate(value = as.numeric(value),
          year = as.integer(as.character(year)))
 
-pop4 <- rgdx.param(file.path(paste0("input/pop_SSP4")), "pop") %>%
+pop4 <- rgdx.param(file.path(paste0("source/pop_SSP4")), "pop") %>%
   setNames(c("SimUID", "SCEN1" , "variable" , "year" , "value")) %>% mutate(across(everything(), as.character)) %>%
   mutate(value = as.numeric(value),
          year = as.integer(as.character(year)))
 
-pop5 <- rgdx.param(file.path(paste0("input/pop_SSP5")), "pop") %>%
+pop5 <- rgdx.param(file.path(paste0("source/pop_SSP5")), "pop") %>%
   setNames(c("SimUID", "SCEN1" , "variable" , "year" , "value")) %>% mutate(across(everything(), as.character)) %>%
   mutate(value = as.numeric(value),
          year = as.integer(as.character(year)))
 
 
-gdp <- rgdx.param(file.path(paste0("input/gdp")), "gdp") %>%
+gdp <- rgdx.param(file.path(paste0("source/gdp")), "gdp") %>%
   setNames(c("SimUID", "SCEN1" , "year" , "value")) %>% mutate(across(everything(), as.character)) %>%
   mutate(value = as.numeric(value),
          year = as.integer(as.character(year)))
 
 YLD_SSP_STAT <-
-  rgdx.param(file.path(paste0("input/YLD_SSP_STATandDYN_regions37")), "YLD_SSP_STAT") %>%
+  rgdx.param(file.path(paste0("source/YLD_SSP_STATandDYN_regions37")), "YLD_SSP_STAT") %>%
   setNames(c("SCEN1" , "REGION", "CROP", "year" , "value")) %>% mutate(across(everything(), as.character)) %>%
   mutate(value = as.numeric(value),
          year = as.integer(as.character(year)))
@@ -153,39 +155,39 @@ YLD_SSP_STAT <-
 
 
 init_xmat <-
-  rgdx.param(file.path(paste0("input/Xmat")), "xmat") %>%
+  rgdx.param(file.path(paste0("source/Xmat")), "xmat") %>%
   setNames(c("SimUID" , "REGION", "variable" , "value")) %>% mutate(across(everything(), as.character)) %>%
   mutate(value = as.numeric(value))
 
 LUC_Fin <-
-  rgdx.param(file.path(paste0("input/LUC_Fin_Write_SSP2_msg07Ukraine37R")), "LUC_Fin") %>%
+  rgdx.param(file.path(paste0("source/LUC_Fin_Write_SSP2_msg07Ukraine37R")), "LUC_Fin") %>%
   setNames(c("SimUID", "lu.class", "value")) %>% mutate(across(everything(), as.character)) %>%
   mutate(value = as.numeric(value)) %>% left_join(init_xmat %>% dplyr::select(SimUID, REGION) %>% unique())
 
 
 SRP_Suit <-
-  rgdx.param(file.path(paste0("input/X_4Tatiana")), "SRP_suit") %>%
+  rgdx.param(file.path(paste0("source/X_4Tatiana")), "SRP_suit") %>%
   setNames(c("SimUID", "country", "SRP_class", "value")) %>% subset(SRP_class ==
                                                                       "SRP_NPP") %>% mutate(across(everything(), as.character)) %>%
   mutate(value = as.numeric(value))  %>% left_join(init_xmat %>% dplyr::select(SimUID, REGION) %>% unique())
 
 trans_factors <-
-  rgdx.param(file.path(paste0("input/Xmat")), "trans_factors") %>%
+  rgdx.param(file.path(paste0("source/Xmat")), "trans_factors") %>%
   setNames(c("variable" , "value")) %>% mutate(across(everything(), as.character)) %>%
   mutate(value = as.numeric(value))
 
 luc_downscl_coeff <-
-  rgdx.param(file.path(paste0("input/betas")), "luc_downscl_coeff") %>%
+  rgdx.param(file.path(paste0("source/betas")), "luc_downscl_coeff") %>%
   setNames(c("REGION", "lu.from", "lu.to", "variable" , "value")) %>% mutate(across(everything(), as.character)) %>%
   mutate(value = as.numeric(value))
 
 AREA <-
-  rgdx.param(file.path(paste0("input/X_4Tatiana")), "Area") %>%
+  rgdx.param(file.path(paste0("source/X_4Tatiana")), "Area") %>%
   setNames(c("SimUID", "country", "CROP", "mgmt_sys", "value")) %>% mutate(across(everything(), as.character)) %>%
   mutate(value = as.numeric(value)) %>% left_join(init_xmat %>% dplyr::select(SimUID, REGION) %>% unique())
 
 Yield_Simu <-
-  rgdx.param(file.path(paste0("input/yields")), "Yield_Simu") %>%
+  rgdx.param(file.path(paste0("source/yields")), "Yield_Simu") %>%
   setNames(c("SimUID", "country", "CROP", "mgmt_sys" , "value")) %>% mutate(across(everything(), as.character)) %>%
   mutate(value = as.numeric(value))  %>% left_join(init_xmat %>% dplyr::select(SimUID, REGION) %>% unique())
 
@@ -233,6 +235,7 @@ for(scen in scenarios){
     init.areas <-
       LUC_Fin %>% subset(REGION == rrr) %>% dplyr::select(!REGION) %>% subset(lu.class != "SimUarea") %>%
       rename(ns = SimUID, lu.from = lu.class)  %>% mutate(value = ifelse(value < 0.00001, 0, value))
+
   } else {
     init.areas <-
       read.csv(file="input/SimU_LU_biodiv_G4M_jan19.csv") %>%
@@ -249,11 +252,12 @@ for(scen in scenarios){
       mutate(cropland=glob_crop) %>%
       dplyr::select(!c(glob_crop, restored))  %>%
       pivot_longer(cols = c(!SimUID), names_to = "lu.from", values_to = "value") %>%
-      mutate(value=value/1000) %>%
       rename(ns=SimUID) %>% mutate(lu.from=recode(lu.from,"cropland"="CrpLnd",
                                                   "grassland"="Grass",
                                                   "other"="OthNatLnd",
-                                                  "priforest"="Forest"))
+                                                  "priforest"="PriFor",
+                                                  "SRP"="PltFor",
+                                                  "mngforest"="MngFor",))
 
 
   }
@@ -374,9 +378,9 @@ for(scen in scenarios){
     bind_rows(data.frame(ks = unique(xmat$ks)[which(unique(xmat$ks) %in% unique(curr.projections$ks))], value = "projected"))
 
   res <-
-    downscalr::downscale(
-      targets = DDelta,
-      init.areas,
+    downscale(
+      targets = DDelta %>% mutate(lu.from=recode(lu.from,"PriFor"="Forest"),
+                                  lu.to  =recode(lu.to  ,"MngFor"="Forest")),
       xmat,
       betas = betas,
       priors = curr.SRP_Suit,
@@ -385,6 +389,7 @@ for(scen in scenarios){
       xmat.proj = curr.projections,
       restrictions = restrictions
     )
+
 
 
 
