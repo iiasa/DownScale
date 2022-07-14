@@ -192,7 +192,7 @@ Yield_Simu <-
 
 
 #################################### prepartaion of projections/restrictions & other for DS ####
-#REGION <- unique(LUC_COMPARE_SCEN0$REGION)[!unique(LUC_COMPARE_SCEN0$REGION)=="World"]
+REGION <- unique(LUC_COMPARE_SCEN0$REGION)[!unique(LUC_COMPARE_SCEN0$REGION)=="World"]
 scengrid <- parameters[[5]] %>% mutate(REGION=rep(REGION,length(unique(parameters[[5]]$ScenLoop))))
 #scengrid <- readRDS("ISIMIP_scengrid.RData") %>% mutate(ScenLoop=rep(seq(1:22),37)) %>%
 #  arrange(ScenLoop) %>% mutate(ScenNr=1:(22*37))
