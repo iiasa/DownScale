@@ -292,7 +292,8 @@ for(scen in scenarios){
         SCEN2 == curr.SCEN2 & SCEN3 == curr.SCEN3
     ) %>%
     dplyr::select(c(lu.from, lu.to, year, value)) %>% unique() %>% rename(times = year) %>%
-    ungroup() %>% group_by(lu.from, lu.to, times) %>% summarise(value=sum(value)) %>% ungroup() #targets
+    ungroup() %>% group_by(lu.from, lu.to, times) %>% summarise(value=sum(value)) %>% ungroup() %>%
+    mutate(value= value*1000) #targets
 
   betas <- luc_downscl_coeff %>% subset(REGION == rrr) %>%
     rename(ks = variable) %>% dplyr::select(-REGION)  %>% subset(ks %in% unique(xmat$ks))
