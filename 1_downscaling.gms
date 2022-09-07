@@ -24,9 +24,9 @@ SET
 REGION
 COUNTRY
 REGION_MAP
-MacroScen
-BioenScen
-IEA_SCEN
+SCEN1
+SCEN2
+SCEN3
 ScenYear
 ;
 
@@ -43,9 +43,9 @@ $LOAD Price_Compare2 = Price_Compare2
 $LOAD REGION
 $LOAD COUNTRY
 $LOAD REGION_MAP
-$LOAD MacroScen
-$LOAD BioenScen
-$LOAD IEA_SCEN
+$LOAD SCEN1
+$LOAD SCEN2
+$LOAD SCEN3
 $LOAD ScenYear
 $GDXIN
 
@@ -91,16 +91,16 @@ ScenLOOP(AllScenLOOP)
 %nsim%
 /
 
-SET MAP_ScenLOOP_ScenDims(AllScenLOOP,MacroScen,BioenScen,IEA_SCEN,REGION);
-SET MAP_ScenLOOP_ScenDims2(MacroScen,BioenScen,IEA_SCEN,REGION);
+SET MAP_ScenLOOP_ScenDims(AllScenLOOP,SCEN1,SCEN2,SCEN3,REGION);
+SET MAP_ScenLOOP_ScenDims2(SCEN1,SCEN2,SCEN3,REGION);
 
-MAP_ScenLOOP_ScenDims2(MacroScen,BioenScen,IEA_SCEN,REGION)
- $LANDCOVER_COMPARE_SCEN(REGION,'TotLnd',MacroScen,BioenScen,IEA_SCEN,'2000')=YES;
+MAP_ScenLOOP_ScenDims2(SCEN1,SCEN2,SCEN3,REGION)
+ $LANDCOVER_COMPARE_SCEN(REGION,'TotLnd',SCEN1,SCEN2,SCEN3,'2000')=YES;
 
 SCALAR ScenNumber /0/;
 
-LOOP((MAP_ScenLOOP_ScenDims2(MacroScen,BioenScen,IEA_SCEN,REGION)),
-MAP_ScenLOOP_ScenDims(AllScenLOOP,MacroScen,BioenScen,IEA_SCEN,REGION)
+LOOP((MAP_ScenLOOP_ScenDims2(SCEN1,SCEN2,SCEN3,REGION)),
+MAP_ScenLOOP_ScenDims(AllScenLOOP,SCEN1,SCEN2,SCEN3,REGION)
  $(AllScenLOOP.val eq ScenNumber) = YES;
 
 ScenNumber = ScenNumber+1;
@@ -114,8 +114,8 @@ SET rSimUID(SimUID);
 ALIAS(rSimUID,i);
 
 PARAMETER
-SH_Opt(REGION,SimUID,LC_TYPES_EPIC,LC_TYPES_EPIC,BioenScen,ScenYear)
-Delta_Opt(REGION,SimUID,LC_TYPES_EPIC,LC_TYPES_EPIC,BioenScen,ScenYear)
+SH_Opt(REGION,SimUID,LC_TYPES_EPIC,LC_TYPES_EPIC,SCEN2,ScenYear)
+Delta_Opt(REGION,SimUID,LC_TYPES_EPIC,LC_TYPES_EPIC,SCEN2,ScenYear)
 Sum_LandUse_Aux(REGION,LC_TYPES_EPIC,ScenYear)
 * Used for calculating priors
 Aux_Grass_NatLand
@@ -126,8 +126,8 @@ AuxForest_CrpLnd
 Aux_Nat_Land
 Sum_AreaWeighted_Product_Tot
 * Planted forest is not available in 2000 and has to be initialised
-PltFor_Tot(REGION,BioenScen,ScenYear)
-ShPltForInit(REGION,SimUID,BioenScen,ScenYear)
+PltFor_Tot(REGION,SCEN2,ScenYear)
+ShPltForInit(REGION,SimUID,SCEN2,ScenYear)
 * Land use change at the beginning of the year
 Delta_Init(REGION,LC_TYPES_EPIC,LC_TYPES_EPIC,ScenYear)
 * Land use change at the end of the year
@@ -173,7 +173,7 @@ SH1(LC_TYPES_EPIC,LC_TYPES_EPIC,SimUID)
 * Consistency checks, Auxiliary variables
 SH1_Check_sum(LC_TYPES_EPIC,LC_TYPES_EPIC,ScenYear)
 X_Check_sum(LC_TYPES_EPIC,LC_TYPES_EPIC,ScenYear)
-Sh(REGION,SimUID,LC_TYPES_EPIC,LC_TYPES_EPIC,BioenScen,ScenYear)
+Sh(REGION,SimUID,LC_TYPES_EPIC,LC_TYPES_EPIC,SCEN2,ScenYear)
 * for land accounting
 DDelta(LC_TYPES_EPIC,LC_TYPES_EPIC)
 SimUnitArea(SimUID)
@@ -329,7 +329,7 @@ MODEL ENTROPYMAX/
 
 
 * Initialize priors
-LOOP(MAP_ScenLOOP_ScenDims(ScenLOOP,MacroScen,BioenScen,IEA_SCEN,REGION),
+LOOP(MAP_ScenLOOP_ScenDims(ScenLOOP,SCEN1,SCEN2,SCEN3,REGION),
 
  rSimUID(SimUID)
   $  SUM(COUNTRY $ REGION_MAP(REGION,COUNTRY),
@@ -338,11 +338,11 @@ LOOP(MAP_ScenLOOP_ScenDims(ScenLOOP,MacroScen,BioenScen,IEA_SCEN,REGION),
 
 LOOP(ScenYear,
 
-* Initialization of land use change to be equal to LUC_COMPARE_SCEN0(REGION,LUC_Set1,LUC_Set2,MacroScen,BioenScen,IEA_SCEN,ScenYear)
+* Initialization of land use change to be equal to LUC_COMPARE_SCEN0(REGION,LUC_Set1,LUC_Set2,SCEN1,SCEN2,SCEN3,ScenYear)
 DDelta(LC_TYPES_EPIC,LC_TYPES_EPIC) = 0;
 DDelta(LC_TYPES_EPIC1,LC_TYPES_EPIC2)
  = SUM((LC_MAP_EPIC_LUCSET(LC_TYPES_EPIC1,LUC_Set1),LC_MAP_EPIC_LUCSET2(LC_TYPES_EPIC2,LUC_Set2)),
-   LUC_COMPARE_SCEN0(REGION,LUC_Set1,LUC_Set2,MacroScen,BioenScen,IEA_SCEN,ScenYear));
+   LUC_COMPARE_SCEN0(REGION,LUC_Set1,LUC_Set2,SCEN1,SCEN2,SCEN3,ScenYear));
 
 * if for whatever reason DDelta(LC_TYPES_EPIC1,LC_TYPES_EPIC2) is negative, set it to 0
 DDelta(LC_TYPES_EPIC1,LC_TYPES_EPIC2)
@@ -359,12 +359,12 @@ Land_Cover_SU(rSimUID,LC_TYPES_EPIC) = LUC_Fin(rSimUID,LC_TYPES_EPIC) ;
 Land_Cover_SU(rSimUID,LC_TYPES_EPIC) $(Land_Cover_SU(rSimUID,LC_TYPES_EPIC) < 0) = 0 ;
 
 * Initialize Planted forst as some share of Land_Cover_SU(rSimUID,'OthNatLnd'). In Initial year, land use data for planted forest is absent
-PltFor_Tot(REGION,BioenScen,ScenYear) = LANDCOVER_COMPARE_SCEN(REGION,'PltForTot',MacroScen,BioenScen,IEA_SCEN,ScenYear) ;
+PltFor_Tot(REGION,SCEN2,ScenYear) = LANDCOVER_COMPARE_SCEN(REGION,'PltForTot',SCEN1,SCEN2,SCEN3,ScenYear) ;
 
 Aux_Nat_Land = sum(rSimUID $(Land_Cover_SU(rSimUID,'OthNatLnd') > 0), Land_Cover_SU(rSimUID,'OthNatLnd')) ;
-ShPltForInit(REGION,rSimUID,BioenScen,ScenYear) = Land_Cover_SU(rSimUID,'OthNatLnd') /Aux_Nat_Land ;
+ShPltForInit(REGION,rSimUID,SCEN2,ScenYear) = Land_Cover_SU(rSimUID,'OthNatLnd') /Aux_Nat_Land ;
 
-Land_Cover_SU(rSimUID,'PltFor') =  PltFor_Tot(REGION,BioenScen,ScenYear) * ShPltForInit(REGION,rSimUID,BioenScen,ScenYear) ;
+Land_Cover_SU(rSimUID,'PltFor') =  PltFor_Tot(REGION,SCEN2,ScenYear) * ShPltForInit(REGION,rSimUID,SCEN2,ScenYear) ;
 
 * Subtract PlantedForest from OthNatLnd
 Land_Cover_SU(rSimUID,'OthNatLnd') = Land_Cover_SU(rSimUID,'OthNatLnd') - Land_Cover_SU(rSimUID,'PltFor') ;
@@ -424,7 +424,7 @@ PRODUCT_CROP_UNIT_INPUT(rSimUID,CROP,INPUT_LEVEL)
 
 * Production total
 Product_Tot(rSimUID)
- = sum((CROP,INPUT_LEVEL),Price_Compare2(Crop,REGION,MacroScen,BioenScen,IEA_SCEN,ScenYear)* PRODUCT_CROP_UNIT_INPUT(rSimUID,CROP,INPUT_LEVEL)) ;
+ = sum((CROP,INPUT_LEVEL),Price_Compare2(Crop,REGION,SCEN1,SCEN2,SCEN3,ScenYear)* PRODUCT_CROP_UNIT_INPUT(rSimUID,CROP,INPUT_LEVEL)) ;
 
 AreaWeighted_Product_Tot(rSimUID) $(Sum_Crop_Area(rSimUID) > 0 )
  = Product_Tot(rSimUID) / Sum_Crop_Area(rSimUID) ;
@@ -550,7 +550,7 @@ X_VAR.UP(LC_TYPES_EPIC1,LC_TYPES_EPIC2,rSimUID) $((NOT sameas(LC_TYPES_EPIC1,LC_
 X_VAR.LO(LC_TYPES_EPIC1,LC_TYPES_EPIC2,rSimUID) $((NOT sameas(LC_TYPES_EPIC1,LC_TYPES_EPIC2)) AND (SH1(LC_TYPES_EPIC1,LC_TYPES_EPIC2,rSimUID))) = 0 ;
 X_VAR.L(LC_TYPES_EPIC1,LC_TYPES_EPIC2,rSimUID)  $((NOT sameas(LC_TYPES_EPIC1,LC_TYPES_EPIC2)) AND (SH1(LC_TYPES_EPIC1,LC_TYPES_EPIC2,rSimUID))) = SH1(LC_TYPES_EPIC1,LC_TYPES_EPIC2,rSimUID) ;
 
-Sh(REGION,rSimUID, LC_TYPES_EPIC1,LC_TYPES_EPIC2,BioenScen,ScenYear)
+Sh(REGION,rSimUID, LC_TYPES_EPIC1,LC_TYPES_EPIC2,SCEN2,ScenYear)
  = SH1(LC_TYPES_EPIC1,LC_TYPES_EPIC2,rSimUID);
 
 *option iterlim = 2000 ;
@@ -625,11 +625,11 @@ Option clear = rSimUID ;
 
 * PART 3: MAPPING TO G4Mm REPORTING
 PARAMETER
-Land_Cover_SU_Region_SCEN(REGION,SimUID,LC_TYPES_EPIC,MacroScen,BioenScen,IEA_SCEN,ScenYear);
+Land_Cover_SU_Region_SCEN(REGION,SimUID,LC_TYPES_EPIC,SCEN1,SCEN2,SCEN3,ScenYear);
 
-LOOP(MAP_ScenLOOP_ScenDims(ScenLOOP,MacroScen,BioenScen,IEA_SCEN,REGION),
+LOOP(MAP_ScenLOOP_ScenDims(ScenLOOP,SCEN1,SCEN2,SCEN3,REGION),
 Land_Cover_SU_Region(REGION,SimUID,LC_TYPES_EPIC,ScenYear) $(Land_Cover_SU_Region (REGION,SimUID,LC_TYPES_EPIC,ScenYear) < 0) = 0 ;
-Land_Cover_SU_Region_SCEN(REGION,SimUID,LC_TYPES_EPIC,MacroScen,BioenScen,IEA_SCEN,ScenYear) = Land_Cover_SU_Region(REGION,SimUID,LC_TYPES_EPIC,ScenYear) ;
+Land_Cover_SU_Region_SCEN(REGION,SimUID,LC_TYPES_EPIC,SCEN1,SCEN2,SCEN3,ScenYear) = Land_Cover_SU_Region(REGION,SimUID,LC_TYPES_EPIC,ScenYear) ;
 );
 
 $include .\source\set_g4mIDsimUIDmap.gms
@@ -639,33 +639,33 @@ Rg4m_05_id(g4m_05_id);
 Rg4m_05_id(g4m_05_id) $ SUM(G4MID_SIMUID_MAP(g4m_05_id,SimUID),1) = YES;
 
 PARAMETER
-LandCover_G4MID_0(SimUID,MacroScen,BioenScen,IEA_SCEN,LandTypeFAO,ScenYear)
-LandCover_G4MID_1(g4m_05_id,SimUID,MacroScen,IEA_SCEN,BioenScen,LandTypeFAO,ScenYear)
-LandCover_G4MID(g4m_05_id,MacroScen,IEA_SCEN,BioenScen,*,ScenYear);
+LandCover_G4MID_0(SimUID,SCEN1,SCEN2,SCEN3,LandTypeFAO,ScenYear)
+LandCover_G4MID_1(g4m_05_id,SimUID,SCEN1,SCEN3,SCEN2,LandTypeFAO,ScenYear)
+LandCover_G4MID(g4m_05_id,SCEN1,SCEN3,SCEN2,*,ScenYear);
 
-LandCover_G4MID_0(SimUID,MacroScen,BioenScen,IEA_SCEN,LandTypeFAOg4m,ScenYear)
+LandCover_G4MID_0(SimUID,SCEN1,SCEN2,SCEN3,LandTypeFAOg4m,ScenYear)
  = SUM((REGION,LandType_MAP(LC_TYPES_EPIC,LandTypeFAOg4m)),
-      Land_Cover_SU_Region_SCEN(REGION,SimUID,LC_TYPES_EPIC,MacroScen,BioenScen,IEA_SCEN,ScenYear));
+      Land_Cover_SU_Region_SCEN(REGION,SimUID,LC_TYPES_EPIC,SCEN1,SCEN2,SCEN3,ScenYear));
 
 LOOP(G4MID_SIMUID_MAP(Rg4m_05_id,SimUID),
-LandCover_G4MID_1(Rg4m_05_id,SimUID,MacroScen,IEA_SCEN,BioenScen,LandTypeFAOg4m,ScenYear)
- = LandCover_G4MID_0(SimUID,MacroScen,BioenScen,IEA_SCEN,LandTypeFAOg4m,ScenYear);
+LandCover_G4MID_1(Rg4m_05_id,SimUID,SCEN1,SCEN3,SCEN2,LandTypeFAOg4m,ScenYear)
+ = LandCover_G4MID_0(SimUID,SCEN1,SCEN2,SCEN3,LandTypeFAOg4m,ScenYear);
 );
 
-LandCover_G4MID(Rg4m_05_id,MacroScen,IEA_SCEN,BioenScen,LandTypeFAOg4m,ScenYear)
+LandCover_G4MID(Rg4m_05_id,SCEN1,SCEN3,SCEN2,LandTypeFAOg4m,ScenYear)
  = SUM(G4MID_SIMUID_MAP(Rg4m_05_id,SimUID),
-        LandCover_G4MID_1(Rg4m_05_id,SimUID,MacroScen,IEA_SCEN,BioenScen,LandTypeFAOg4m,ScenYear));
+        LandCover_G4MID_1(Rg4m_05_id,SimUID,SCEN1,SCEN3,SCEN2,LandTypeFAOg4m,ScenYear));
 
-LandCover_G4MID(Rg4m_05_id,MacroScen,IEA_SCEN,BioenScen,"% Reserved",ScenYear)
-  $ LandCover_G4MID(Rg4m_05_id,MacroScen,IEA_SCEN,BioenScen,"TotLnd",ScenYear)
- =  LandCover_G4MID(Rg4m_05_id,MacroScen,IEA_SCEN,BioenScen,"Reserved",ScenYear)
-  / LandCover_G4MID(Rg4m_05_id,MacroScen,IEA_SCEN,BioenScen,"TotLnd",ScenYear);
+LandCover_G4MID(Rg4m_05_id,SCEN1,SCEN3,SCEN2,"% Reserved",ScenYear)
+  $ LandCover_G4MID(Rg4m_05_id,SCEN1,SCEN3,SCEN2,"TotLnd",ScenYear)
+ =  LandCover_G4MID(Rg4m_05_id,SCEN1,SCEN3,SCEN2,"Reserved",ScenYear)
+  / LandCover_G4MID(Rg4m_05_id,SCEN1,SCEN3,SCEN2,"TotLnd",ScenYear);
 
-LandCover_G4MID(Rg4m_05_id,MacroScen,IEA_SCEN,BioenScen,"% Reserved",ScenYear)
- $((LandCover_G4MID(Rg4m_05_id,MacroScen,IEA_SCEN,BioenScen,"% Reserved",ScenYear) ge 1) AND
-    LandCover_G4MID(Rg4m_05_id,MacroScen,IEA_SCEN,BioenScen,"TotLndnew",ScenYear))
- = LandCover_G4MID(Rg4m_05_id,MacroScen,IEA_SCEN,BioenScen,"Reserved",ScenYear)
-  /LandCover_G4MID(Rg4m_05_id,MacroScen,IEA_SCEN,BioenScen,"TotLndnew",ScenYear);
+LandCover_G4MID(Rg4m_05_id,SCEN1,SCEN3,SCEN2,"% Reserved",ScenYear)
+ $((LandCover_G4MID(Rg4m_05_id,SCEN1,SCEN3,SCEN2,"% Reserved",ScenYear) ge 1) AND
+    LandCover_G4MID(Rg4m_05_id,SCEN1,SCEN3,SCEN2,"TotLndnew",ScenYear))
+ = LandCover_G4MID(Rg4m_05_id,SCEN1,SCEN3,SCEN2,"Reserved",ScenYear)
+  /LandCover_G4MID(Rg4m_05_id,SCEN1,SCEN3,SCEN2,"TotLndnew",ScenYear);
 
 
 execute_unload '%gdx_path%',
