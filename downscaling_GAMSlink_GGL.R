@@ -81,7 +81,8 @@ LUC_COMPARE_SCEN0 <-
     )
   ) %>%  mutate(across(everything(), as.character)) %>%
   mutate(value = as.numeric(value),
-         year = as.integer(as.character(year)))
+         year = as.integer(as.character(year))) %>%
+  mutate(SCEN1=toupper(SCEN1),SCEN2=toupper(SCEN2),SCEN3=toupper(SCEN3))
 
 Price_Compare2 <-
   rgdx.param(file.path(paste0(
@@ -238,11 +239,11 @@ for(scen in scenarios){
 
   } else {
     init.areas <-
-      read.csv(file="input/SimU_LU_biodiv_G4M_jan19.csv") %>%
+      read.csv(file="source/SimU_LU_biodiv_G4M_jan19.csv") %>%
       mutate(SimUID=row.names(.)) %>% subset(SimUID%in%unique((LUC_Fin %>% subset(REGION == rrr))$SimUID))
 
     cropsys <-
-      read.csv(file="input/cropsys.csv") %>%
+      read.csv(file="source/cropsys.csv") %>%
       mutate(SS_area=rowSums(across(ends_with("SS"))), glob_crop=rowSums(across(ends_with(c("HI","LI","IR"))))) %>%
       dplyr::select(SIMUID,SS_area,glob_crop) %>% rename(SimUID=SIMUID) %>% mutate(SimUID=as.character(SimUID))
 
