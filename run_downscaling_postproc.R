@@ -32,7 +32,7 @@ rfunc <- function(x) readRDS(x)[[3]]$out.res
 dscens <- downs_map %>% filter(ScenNr==scen)
 
 # Load in downscalr output
-downscalr_out <- rfunc(path(str_glue("postproc","output_",PROJECT,"_",cluster_nr_downscaling,".",
+downscalr_out <- rfunc(path(str_glue("postproc", "output_", cluster_nr_downscaling, ".",
                                        sprintf("%06d",dscens$ScenNr),".RData")))
 
 # Get output
