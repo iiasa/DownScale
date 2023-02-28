@@ -14,10 +14,12 @@ DOWNSCALING_TYPE <- config[[2]]
 cluster_nr_downscaling <- config[[3]]
 PROJECT <- config[[4]]
 DATE_LABEL <- config[[5]]
+scenid_map <- config[[6]]
 
 # scenario counter
 scen_cnt <- as.integer(args[1])
 f_nr <- scen_cnt + 1
+scen_id <- scenid_map %>% filter(scencnt==scen_cnt) %>% dplyr::select(scenid) %>% pull()
 
   scenarios_idx <- scenario_mapping$ScenNr[which(scenario_mapping$ScenLoop %in% scen_cnt)] %>% sort()
 
@@ -44,7 +46,7 @@ f_nr <- scen_cnt + 1
 
       # Construct file path
       f <- path("gdx",
-                str_glue("GLOBIOM2G4M_output_LC_abs_{PROJECT}_{DATE_LABEL}.csv"))
+                str_glue("GLOBIOM2G4M_output_LC_abs_{PROJECT}_{DATE_LABEL}_{scen_id}.csv"))
 
       if (i==1) {
         # Write csv file
@@ -60,7 +62,7 @@ f_nr <- scen_cnt + 1
                                                                     s_list,".RData")))[[2]] %>% select(-LC_TYPES_EPIC)
 
       f <- path("gdx",
-                str_glue("GLOBIOM2G4M_output_LC_abs_{PROJECT}_{DATE_LABEL}.csv"))
+                str_glue("GLOBIOM2G4M_output_LC_abs_{PROJECT}_{DATE_LABEL}_{scen_id}.csv"))
 
       if (i==1) {
         # Write csv file
