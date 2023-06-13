@@ -1,11 +1,14 @@
-#library(tidyverse)
-# curr.SCEN1 <- "SSP2"
-# curr.SCEN2 <- "SPA0"
-# curr.SCEN3 <- "noCC_rcpref"
+library(tidyverse)
+# curr.SCEN1 <- "SSP1"
+# curr.SCEN2 <- "SPA1"
+# curr.SCEN3 <- "RCP2p6_UKESM1"
 # project <- "isimip"
-# lab <- "27042022"
+# lab <- "13072022"
+
+mysum <- function(x){y <- sum(x, na.rm = TRUE); return(y)}
 
 g4mid_to_simuid <- function(DS.res = out.res,
+         #G4M.res.path,
          lab,
          project,
          curr.SCEN1,
@@ -14,12 +17,9 @@ g4mid_to_simuid <- function(DS.res = out.res,
 
   ### create a mapping between G4M and SIMUS
 
- # DS.res=readRDS(paste0('./input/ds_test/output_isimip_9863.000557.RData'))[[3]]$out.res
+  # DS.res=readRDS(paste0('../Isimip/13072022/postproc/new/output_15002.000002.RData'))[[3]]$out.res
 
-
-
-
-  mapping <- readRDS(file = path('input/G4M_mapping.RData'))[[1]]
+  mapping <- readRDS(file = 'input/G4M_mapping.RData')[[1]]
   mapping <- apply(mapping, 2, as.character)
   mapping <- data.frame(mapping)
   mapping <- mapping %>% rename("g4m_id" = "g4m_05_id", "ns" = "SimUID")
@@ -27,12 +27,13 @@ g4mid_to_simuid <- function(DS.res = out.res,
   #save current region
   curr.region <- unique(DS.res$REGION)
 
-  G4M.res <- read.csv(path("postproc",str_glue("area_harvest_map_",project,"_",lab,"_",curr.SCEN1,"_",curr.SCEN3,"_",curr.SCEN2,".csv")))
+  # G4M.res <- read.csv(paste0("../Isimip/13072022/G4M/new/area_harvest_map_",project,"_",lab,"_",curr.SCEN1,"_",curr.SCEN3,"_",curr.SCEN2,".csv"))
   # G4M.res <-
   #   read.csv(paste0("./input/ds_test/area_harvest_map_",project,"_",lab,"_",curr.SCEN1,"_",curr.SCEN3,"_",curr.SCEN2,".csv"))
+  G4M.res <- read.csv(path(str_glue("area_harvest_map_",project,"_",lab,"_",curr.SCEN1,"_",curr.SCEN3,"_",curr.SCEN2,".csv")))
 
   G4M.res <-
-    G4M.res %>% select(g4m_id, year, forest_old_ha, forest_new_ha) %>%
+    G4M.res %>% dplyr::select(g4m_id, year, forest_old_ha, forest_new_ha) %>%
     group_by(g4m_id) %>% mutate(
       deforestation = forest_old_ha - lag(forest_old_ha, n = 2),
       afforestation = forest_new_ha - lag(forest_new_ha, n =
@@ -63,13 +64,13 @@ g4mid_to_simuid <- function(DS.res = out.res,
           "G4Mland",
       )
     ) %>%
-    group_by(REGION, times, ns, lu.from, lu.to) %>% summarise(value = sum(value))
+    group_by(REGION, times, ns, lu.from, lu.to) %>% summarise(value = mysum(value))
 
   DS.init.g4mland <-
     DS.res.g4mland %>%
     filter(times == 2010) %>%
     group_by(REGION, ns, lu.from, times) %>%
-    summarise(value = sum(value)) %>%
+    summarise(value = mysum(value)) %>%
     subset(lu.from == 'G4Mland') %>%
     mutate(times = times - 10)
 
@@ -77,7 +78,7 @@ g4mid_to_simuid <- function(DS.res = out.res,
     DS.res.g4mland %>%
     filter(times == 2010) %>%
     group_by(REGION, ns, lu.from, times) %>%
-    summarise(value = sum(value)) %>%
+    summarise(value = mysum(value)) %>%
     subset(lu.from == 'Grass') %>%
     mutate(times = times - 10)
 
@@ -85,7 +86,7 @@ g4mid_to_simuid <- function(DS.res = out.res,
     DS.res.g4mland %>%
     filter(times == 2010) %>%
     group_by(REGION, ns, lu.from, times) %>%
-    summarise(value = sum(value)) %>%
+    summarise(value = mysum(value)) %>%
     subset(lu.from == 'CrpLnd') %>%
     mutate(times = times - 10)
 
@@ -93,45 +94,45 @@ g4mid_to_simuid <- function(DS.res = out.res,
     DS.res.g4mland %>%
     filter(times == 2010) %>%
     group_by(REGION, ns, lu.from, times) %>%
-    summarise(value = sum(value)) %>%
+    summarise(value = mysum(value)) %>%
     subset(lu.from == 'PltFor') %>%
     mutate(times = times - 10)
 
   DS.init <- DS.res.g4mland %>%
     filter(times==2010) %>%
     group_by(REGION,ns, lu.from, times) %>%
-    summarise(value=sum(value)) %>%
+    summarise(value=mysum(value)) %>%
     subset(lu.from!='G4Mland') %>%
     mutate(times=times-10)
 
 
 
   forest.weighting <- mapping %>%
-    left_join((DS.init.g4mland %>% ungroup() %>% select(ns, value))) %>%
-    na.omit() %>% group_by(g4m_id) %>% mutate(weight = value / sum(value)) %>% ungroup() %>% select(g4m_id, ns, weight)
+    left_join((DS.init.g4mland %>% ungroup() %>% dplyr::select(ns, value))) %>%
+    na.omit() %>% group_by(g4m_id) %>% mutate(weight = value / mysum(value)) %>% ungroup() %>% dplyr::select(g4m_id, ns, weight)
 
   grass.weighting <- mapping %>%
-    left_join((DS.init.grass %>% ungroup() %>% select(ns, value))) %>%
-    na.omit() %>% group_by(g4m_id) %>% mutate(weight = value / sum(value)) %>% ungroup() %>% select(g4m_id, ns, weight)
+    left_join((DS.init.grass %>% ungroup() %>% dplyr::select(ns, value))) %>%
+    na.omit() %>% group_by(g4m_id) %>% mutate(weight = value / mysum(value)) %>% ungroup() %>% dplyr::select(g4m_id, ns, weight)
 
   crop.weighting <- mapping %>%
-    left_join((DS.init.crop %>% ungroup() %>% select(ns, value))) %>%
-    na.omit() %>% group_by(g4m_id) %>% mutate(weight = value / sum(value)) %>% ungroup() %>% select(g4m_id, ns, weight)
+    left_join((DS.init.crop %>% ungroup() %>% dplyr::select(ns, value))) %>%
+    na.omit() %>% group_by(g4m_id) %>% mutate(weight = value / mysum(value)) %>% ungroup() %>% dplyr::select(g4m_id, ns, weight)
 
   plt.weighting <- mapping %>%
-    left_join((DS.init.plt %>% ungroup() %>% select(ns, value))) %>%
-    na.omit() %>% group_by(g4m_id) %>% mutate(weight = value / sum(value)) %>% ungroup() %>% select(g4m_id, ns, weight)
+    left_join((DS.init.plt %>% ungroup() %>% dplyr::select(ns, value))) %>%
+    na.omit() %>% group_by(g4m_id) %>% mutate(weight = value / mysum(value)) %>% ungroup() %>% dplyr::select(g4m_id, ns, weight)
 
 
   simu.forest <- forest.weighting %>%
     left_join(
-      G4M.res %>% select(g4m_id, year, forest_old_ha, forest_new_ha) %>%
+      G4M.res %>% dplyr::select(g4m_id, year, forest_old_ha, forest_new_ha) %>%
         subset(year == 2000)
     ) %>%
     mutate(forest_old_ha = forest_old_ha * weight,
            forest_new_ha = forest_new_ha * weight) %>%
     na.omit() %>%
-    select(ns, forest_old_ha, forest_new_ha)
+    dplyr::select(ns, forest_old_ha, forest_new_ha)
 
 
   DS.init.g4mland.forest <-
@@ -142,7 +143,7 @@ g4mid_to_simuid <- function(DS.res = out.res,
     mutate(OthNatLnd = value - forest_old_ha - forest_new_ha)
 
 
-  excess.forest <- DS.init.g4mland.forest %>% select(ns, forest_old_ha, OthNatLnd) %>% left_join(mapping) %>% group_by(g4m_id) %>%  filter(OthNatLnd<0) %>% summarise(forest_old_ha=sum(forest_old_ha),excess.f= sum(OthNatLnd)) %>%
+  excess.forest <- DS.init.g4mland.forest %>% dplyr::select(ns, forest_old_ha, OthNatLnd) %>% left_join(mapping) %>% group_by(g4m_id) %>%  filter(OthNatLnd<0) %>% summarise(forest_old_ha=mysum(forest_old_ha),excess.f= mysum(OthNatLnd)) %>%
     mutate(percentage = (forest_old_ha-abs(excess.f))/forest_old_ha)
 
 
@@ -172,7 +173,7 @@ g4mid_to_simuid <- function(DS.res = out.res,
   }
 
   final.forest.alloc <-
-    DS.init.g4mland.forest %>% ungroup() %>% select(REGION, times, ns, forest_old_ha, forest_new_ha, OthNatLnd) %>%
+    DS.init.g4mland.forest %>% ungroup() %>% dplyr::select(REGION, times, ns, forest_old_ha, forest_new_ha, OthNatLnd) %>%
     pivot_longer(
       cols = c(forest_old_ha, forest_new_ha, OthNatLnd),
       names_to = "lu.from",
@@ -188,32 +189,32 @@ g4mid_to_simuid <- function(DS.res = out.res,
   DS.trans.g4mland.g4mid <-
     DS.res.g4mland %>% left_join(mapping) %>%
     group_by(REGION, times, g4m_id, lu.from, lu.to) %>%
-    summarise(value = sum(value)) %>% filter(lu.from == "G4Mland" |
+    summarise(value = mysum(value)) %>% filter(lu.from == "G4Mland" |
                                                lu.to == "G4Mland") %>%
     filter(value != 0)
 
 
   years <- unique(DS.res$times)
 
-  iii <- 2030
+  iii <- 2020
   for (iii in years) {
 
     DS.res.nog4m <- DS.res.g4mland %>% filter(lu.from!="G4Mland" & lu.to!="G4Mland" & times==iii)
 
 
     deforestation <-
-      G4M.res %>% select(g4m_id, year, deforestation, afforestation) %>%
+      G4M.res %>% dplyr::select(g4m_id, year, deforestation, afforestation) %>%
       # filter(deforestation!=0 | afforestation!=0) %>%
       filter(year == iii) %>% mutate(deforestation = abs(deforestation)) %>% left_join(excess.forest) %>%
       mutate(deforestation=ifelse(is.na(percentage),deforestation,deforestation*percentage),
              afforestation=ifelse(is.na(percentage),afforestation,afforestation*percentage)) %>%
-      select(g4m_id,year,deforestation,afforestation)
+      dplyr::select(g4m_id,year,deforestation,afforestation)
 
 
 
 
 
-    deforestation <- deforestation %>% left_join((curr.init.DS %>% filter(lu.from=="forest_old_ha") %>% left_join(mapping) %>% group_by(g4m_id) %>% summarise(forest=sum(value)))) %>% mutate(deforestation=ifelse(is.na(forest),deforestation,min(deforestation,forest))) %>%  select(g4m_id,year,deforestation,afforestation)
+    deforestation <- deforestation %>% left_join((curr.init.DS %>% filter(lu.from=="forest_old_ha") %>% left_join(mapping) %>% group_by(g4m_id) %>% summarise(forest=mysum(value)))) %>% mutate(deforestation=ifelse(is.na(forest),deforestation,min(deforestation,forest))) %>%  dplyr::select(g4m_id,year,deforestation,afforestation)
 
 
     DS.trans.g4mland.g4mid.temp <-
@@ -232,7 +233,7 @@ g4mid_to_simuid <- function(DS.res = out.res,
         lu.from = recode(lu.from, "G4Mland" = "OthNatLnd"),
         lu.to = recode(lu.to, "G4Mland" = "OthNatLnd")
       ) %>%
-      select(REGION, times, g4m_id, lu.from, lu.to, value)
+      dplyr::select(REGION, times, g4m_id, lu.from, lu.to, value)
 
 
     DS.trans.g4mland.g4mid.temp <-
@@ -248,7 +249,7 @@ g4mid_to_simuid <- function(DS.res = out.res,
       left_join((
         curr.init.DS %>% filter(lu.from == "OthNatLnd") %>%
           left_join(mapping) %>% group_by(g4m_id) %>% summarise(value.oth =
-                                                                  sum(value))
+                                                                  mysum(value))
       )) %>%
       mutate(
         value.oth = ifelse(is.na(value.oth), 0, value.oth),
@@ -258,7 +259,7 @@ g4mid_to_simuid <- function(DS.res = out.res,
           recode(lu.to, "G4Mland" = "OthNatLnd")
         )
       ) %>%
-      select(REGION, times, g4m_id, lu.from, lu.to, value)
+      dplyr::select(REGION, times, g4m_id, lu.from, lu.to, value)
 
 
 
@@ -269,7 +270,7 @@ g4mid_to_simuid <- function(DS.res = out.res,
       left_join((
         curr.init.DS %>% filter(lu.from == "OthNatLnd") %>%
           left_join(mapping) %>% group_by(g4m_id) %>% summarise(value.oth =
-                                                                  sum(value))
+                                                                  mysum(value))
       )) %>%
       mutate(
         value.oth = ifelse(is.na(value.oth), 0, value.oth),
@@ -279,7 +280,7 @@ g4mid_to_simuid <- function(DS.res = out.res,
           recode(lu.from, "G4Mland" = "OthNatLnd")
         )
       ) %>%
-      select(REGION, times, g4m_id, lu.from, lu.to, value)
+      dplyr::select(REGION, times, g4m_id, lu.from, lu.to, value)
 
 
 
@@ -305,40 +306,41 @@ g4mid_to_simuid <- function(DS.res = out.res,
 
     grouped.aff <- afforest %>%
       group_by(REGION, times, g4m_id) %>%
-      summarise(value = sum(value),
+      summarise(value = mysum(value),
                 afforestation = mean(afforestation))
 
     allocateable <-
       grouped.aff %>% mutate(afforestation.updated = afforestation - value) %>%
-      filter(afforestation.updated >= 0) %>% select(-value)
+      filter(afforestation.updated >= 0) %>% dplyr::select(-value)
 
     updated.afforest <-
       afforest %>% left_join(allocateable) %>% na.omit() %>%
       mutate(lu.to = recode(lu.to, "G4Mland" = "forest_new_ha")) %>%
-      select(REGION, times, g4m_id, lu.from, lu.to, value)
+      dplyr::select(REGION, times, g4m_id, lu.from, lu.to, value)
 
 
     unallocateable <-
       grouped.aff %>% mutate(afforestation.updated = afforestation - value) %>%
-      filter(afforestation.updated < 0) %>% select(-value)
+      filter(afforestation.updated < 0) %>% dplyr::select(-value)
     if (nrow(unallocateable) != 0) {
       updated.afforest2 <-
         afforest %>% left_join(unallocateable) %>% na.omit() %>%
         mutate(count = 2) %>% uncount(count) %>% ungroup() %>% mutate(identifier = rep(seq(1,2,1),nrow(.)/2))
 
-      updated.afforest2$value[updated.afforest2$identifier == 1] <-
-        updated.afforest2$afforestation[updated.afforest2$identifier == 1]
+      A <- updated.afforest2 %>% filter(identifier==1) %>% mutate(value=value*(afforestation/(afforestation+abs(afforestation.updated))))
+      B <- updated.afforest2 %>% filter(identifier==2) %>% mutate(value=value*(abs(afforestation.updated)/(afforestation+abs(afforestation.updated))))
+
+      updated.afforest2 <- A %>% bind_rows(B)
+
       updated.afforest2$lu.to[updated.afforest2$identifier == 1] <-
         "forest_new_ha"
-      updated.afforest2$value[updated.afforest2$identifier == 2] <-
-        abs(updated.afforest2$afforestation.updated[updated.afforest2$identifier ==
-                                                      1])
+
       updated.afforest2$lu.to[updated.afforest2$identifier == 2] <-
         "OthNatLnd"
 
 
       updated.afforest2 <- updated.afforest2 %>%
-        select(REGION, times, g4m_id, lu.from, lu.to, value)
+        dplyr::select(REGION, times, g4m_id, lu.from, lu.to, value)
 
 
       updated.afforest <-
@@ -352,40 +354,43 @@ g4mid_to_simuid <- function(DS.res = out.res,
 
     grouped.def <- deforest %>%
       group_by(REGION, times, g4m_id) %>%
-      summarise(value = sum(value),
+      summarise(value = mysum(value),
                 deforestation = mean(deforestation))
 
     allocateable <-
       grouped.def %>% mutate(deforestation.updated = deforestation - value) %>%
-      filter(deforestation.updated >= 0) %>% select(-value)
+      filter(deforestation.updated >= 0) %>% dplyr::select(-value)
 
     updated.deforest <-
       deforest %>% left_join(allocateable) %>% na.omit() %>%
       mutate(lu.from = recode(lu.from, "G4Mland" = "forest_old_ha")) %>%
-      select(REGION, times, g4m_id, lu.from, lu.to, value)
+      dplyr::select(REGION, times, g4m_id, lu.from, lu.to, value)
 
 
     unallocateable <-
       grouped.def %>% mutate(deforestation.updated = deforestation - value) %>%
-      filter(deforestation.updated < 0) %>% select(-value)
+      filter(deforestation.updated < 0) %>% dplyr::select(-value)
     if (nrow(unallocateable) != 0) {
       updated.deforest2 <-
         deforest %>% left_join(unallocateable) %>% na.omit() %>%
         mutate(count = 2) %>% uncount(count) %>% ungroup() %>% mutate(identifier = rep(seq(1,2,1),nrow(.)/2))
 
-      updated.deforest2$value[updated.deforest2$identifier == 1] <-
-        updated.deforest2$deforestation[updated.deforest2$identifier == 1]
+
+      A <- updated.deforest2 %>% filter(identifier==1) %>% mutate(value=value*(deforestation/(deforestation+abs(deforestation.updated))))
+      B <- updated.deforest2 %>% filter(identifier==2) %>% mutate(value=value*(abs(deforestation.updated)/(deforestation+abs(deforestation.updated))))
+
+      updated.deforest2 <- A %>% bind_rows(B)
+
+
       updated.deforest2$lu.from[updated.deforest2$identifier == 1] <-
         "forest_old_ha"
-      updated.deforest2$value[updated.deforest2$identifier == 2] <-
-        abs(updated.deforest2$deforestation.updated[updated.deforest2$identifier ==
-                                                      1])
+
       updated.deforest2$lu.from[updated.deforest2$identifier == 2] <-
         "OthNatLnd"
 
 
       updated.deforest2 <- updated.deforest2 %>%
-        select(REGION, times, g4m_id, lu.from, lu.to, value)
+        dplyr::select(REGION, times, g4m_id, lu.from, lu.to, value)
 
 
       updated.deforest <-
@@ -403,8 +408,8 @@ g4mid_to_simuid <- function(DS.res = out.res,
 
 
     DS.trans.g4mland.g4mid.temp <-  DS.trans.g4mland.g4mid.temp %>%
-      left_join(afforestation.updates %>% select(g4m_id, afforestation.updated)) %>%
-      left_join(deforestation.updates %>% select(g4m_id, deforestation.updated)) %>%
+      left_join(afforestation.updates %>% dplyr::select(g4m_id, afforestation.updated)) %>%
+      left_join(deforestation.updates %>% dplyr::select(g4m_id, deforestation.updated)) %>%
       mutate(
         afforestation = ifelse(
           is.na(afforestation.updated),
@@ -417,13 +422,13 @@ g4mid_to_simuid <- function(DS.res = out.res,
           deforestation.updated
         )
       ) %>%
-      select(REGION,
-             times,
-             g4m_id,
-             lu.from,
-             lu.to,
-             deforestation,
-             afforestation)
+      dplyr::select(REGION,
+                    times,
+                    g4m_id,
+                    lu.from,
+                    lu.to,
+                    deforestation,
+                    afforestation)
 
 
     #### forth case: remainder between affor and deforest
@@ -439,7 +444,7 @@ g4mid_to_simuid <- function(DS.res = out.res,
       left_join((
         curr.init.DS %>% filter(lu.from == "OthNatLnd") %>%
           left_join(mapping) %>% group_by(g4m_id) %>% summarise(value.oth =
-                                                                  sum(value))
+                                                                  mysum(value))
       ))
 
     if(ncol(remainder.aff %>% filter(deforestation == 0 & value.oth == 0)) == 0) {
@@ -450,7 +455,7 @@ g4mid_to_simuid <- function(DS.res = out.res,
 
     afforest.transitions <- remainder.aff %>%
       mutate(value = abs(deforestation), lu.from = "forest_old_ha") %>%
-      select(REGION, times, g4m_id, lu.from, lu.to, value) %>% filter(value !=0)
+      dplyr::select(REGION, times, g4m_id, lu.from, lu.to, value) %>% filter(value !=0)
 
     afforestation.transitions2 <- remainder.aff %>%
       mutate(max.trans = ifelse(value.oth > remainder, remainder, value.oth))
@@ -463,7 +468,7 @@ g4mid_to_simuid <- function(DS.res = out.res,
 
     afforestation.transitions2 <- afforestation.transitions2 %>%
       mutate(value = max.trans, lu.from = "OthNatLnd") %>%
-      select(REGION, times, g4m_id, lu.from, lu.to, value)
+      dplyr::select(REGION, times, g4m_id, lu.from, lu.to, value)
 
     total.afforest.transitions <-
       afforest.transitions %>% bind_rows(afforestation.transitions2)
@@ -482,16 +487,16 @@ g4mid_to_simuid <- function(DS.res = out.res,
       mutate(lu.from = "forest_old_ha")
 
 
-      remaining <- updated.deforest %>% filter(lu.from=="forest_old_ha") %>%
-        group_by(g4m_id) %>% summarise(value=sum(value))
+    remaining <- updated.deforest %>% filter(lu.from=="forest_old_ha") %>%
+      group_by(g4m_id) %>% summarise(value=sum(value))
 
-      remaining <- curr.init.DS %>% filter(lu.from == "forest_old_ha") %>%
-        left_join(mapping) %>% group_by(g4m_id) %>% summarise(forest = sum(value)) %>% left_join(remaining) %>%
-        mutate(value=ifelse(is.na(value),0,value), forest=forest-value)
+    remaining <- curr.init.DS %>% filter(lu.from == "forest_old_ha") %>%
+      left_join(mapping) %>% group_by(g4m_id) %>% summarise(forest = sum(value)) %>% left_join(remaining) %>%
+      mutate(value=ifelse(is.na(value),0,value), forest=forest-value)
 
 
 
-      remainder.def <- remainder.def  %>% left_join(remaining)
+    remainder.def <- remainder.def  %>% left_join(remaining)
 
 
     if(ncol(remainder.def %>% filter(forest==0)) == 0) {
@@ -502,7 +507,7 @@ g4mid_to_simuid <- function(DS.res = out.res,
 
     deforest.transitions <- remainder.def %>%
       mutate(value = afforestation, lu.to = "forest_new_ha") %>%
-      select(REGION, times, g4m_id, lu.from, lu.to, value) %>% filter(value !=0)
+      dplyr::select(REGION, times, g4m_id, lu.from, lu.to, value) %>% filter(value !=0)
 
     deforestation.transitions2 <- remainder.def %>%
       mutate(max.trans = ifelse(forest > abs(remainder), abs(remainder), forest))
@@ -515,7 +520,7 @@ g4mid_to_simuid <- function(DS.res = out.res,
 
     deforestation.transitions2 <- deforestation.transitions2 %>%
       mutate(value = max.trans, lu.to = "OthNatLnd") %>%
-      select(REGION, times, g4m_id, lu.from, lu.to, value)
+      dplyr::select(REGION, times, g4m_id, lu.from, lu.to, value)
 
     total.deforest.transitions <-
       deforest.transitions %>% bind_rows(deforestation.transitions2)
@@ -554,25 +559,25 @@ g4mid_to_simuid <- function(DS.res = out.res,
       forest.weighting %>%
       left_join(final.trans.before.selfinducing %>% filter(lu.from!="Grass" & lu.from!="CrpLnd" & lu.from!="PltFor")) %>%
       mutate(value = value * weight) %>%
-      select(REGION, times, ns, lu.from,  value, lu.to)
+      dplyr::select(REGION, times, ns, lu.from,  value, lu.to)
 
     final.trans.before.nong4m.ns.grass <-
       grass.weighting %>%
       left_join(final.trans.before.selfinducing %>% filter(lu.from=="Grass"))  %>%
       mutate(value = value * weight) %>%
-      select(REGION, times, ns, lu.from,  value, lu.to) %>% na.omit()
+      dplyr::select(REGION, times, ns, lu.from,  value, lu.to) %>% na.omit()
 
     final.trans.before.nong4m.ns.crop <-
       crop.weighting %>%
       left_join(final.trans.before.selfinducing %>% filter(lu.from=="CrpLnd"))  %>%
       mutate(value = value * weight) %>%
-      select(REGION, times, ns, lu.from,  value, lu.to) %>% na.omit()
+      dplyr::select(REGION, times, ns, lu.from,  value, lu.to) %>% na.omit()
 
     final.trans.before.nong4m.ns.plt <-
       plt.weighting %>%
       left_join(final.trans.before.selfinducing %>% filter(lu.from=="PltFor"))  %>%
       mutate(value = value * weight) %>%
-      select(REGION, times, ns, lu.from,  value, lu.to) %>% na.omit()
+      dplyr::select(REGION, times, ns, lu.from,  value, lu.to) %>% na.omit()
 
 
     final.trans.before.nong4m.ns <- final.trans.before.nong4m.ns.g4m %>%
@@ -599,44 +604,99 @@ g4mid_to_simuid <- function(DS.res = out.res,
 
     test <- final.trans.ns %>% ungroup() %>%
       group_by(REGION, times, ns, lu.from) %>%
-      summarise(total.out =sum(value)) %>%
-      left_join(curr.init.DS %>% select(-times)) %>%
+      summarise(total.out =mysum(value)) %>%
+      left_join(curr.init.DS %>% dplyr::select(-times)) %>%
       mutate(plsbepositive = value - total.out)
 
 
     ####### fix
     corrected.trans <- final.trans.ns %>% filter(lu.from=="forest_old_ha" & lu.to=="OthNatLnd") %>%
-      left_join(test %>% filter(plsbepositive<0) %>% ungroup() %>% select(ns, plsbepositive)) %>%
-      mutate(value=ifelse(is.na(plsbepositive),value,value+plsbepositive)) %>% select(-plsbepositive)
+      left_join(test %>% filter(plsbepositive<0) %>% ungroup() %>% dplyr::select(ns, plsbepositive)) %>%
+      mutate(value=ifelse(is.na(plsbepositive),value,value+plsbepositive)) %>% dplyr::select(-plsbepositive)
 
     final.trans.ns <- final.trans.ns %>% filter(!(lu.from=="forest_old_ha"&lu.to=="OthNatLnd")) %>% bind_rows(corrected.trans)
 
 
 
 
+    test.transitions_change <-final.trans.ns %>% ungroup() %>%
+                  group_by(REGION, ns, lu.from) %>%
+                  summarise(total.out =mysum(value)) %>% full_join(curr.init.DS %>% dplyr::select(-times)) %>% mutate(total.out=ifelse(is.na(total.out),0,total.out)) %>%
+      mutate(plsbepositive = value - total.out) %>% filter(is.na(value)) %>%
+      dplyr::select(REGION, ns, lu.from) %>% mutate(change=1)
 
-    test.transitions <- curr.init.DS %>% select(-times) %>%
+
+    if(nrow(test.transitions_change)!=0){
+      final.trans.ns <-  final.trans.ns %>% left_join(test.transitions_change) %>%
+        mutate(lu.from=ifelse(!is.na(change)&lu.from=="OthNatLnd","forest_old_ha",
+                              ifelse(!is.na(change)&lu.from=="forest_old_ha","OthNatLnd",lu.from)))
+    }
+
+
+    test.transitions_ <- final.trans.ns %>% group_by(REGION, lu.from, ns) %>% summarise(outflow=mysum(value)) %>%
+      left_join(curr.init.DS) %>%
+      mutate(plsbepositive=value-outflow)
+
+
+    if(any(is.na(test.transitions_))) {
+      warning("Problem with transitions, there are NAs")
+
+
+
+      final.trans.ns <- final.trans.ns %>% left_join(test.transitions_ %>% filter(is.na(value)) %>% dplyr::select(REGION, lu.from, ns) %>% mutate(kick=1)) %>% filter(is.na(kick)) %>% dplyr::select(-kick,-change)
+    }
+
+
+
+    test.transitions <- curr.init.DS %>% dplyr::select(-times) %>%
       left_join(final.trans.ns %>% ungroup() %>%
                   group_by(REGION, ns, lu.from) %>%
-                  summarise(total.out =sum(value))) %>% mutate(total.out=ifelse(is.na(total.out),0,total.out)) %>%
+                  summarise(total.out =mysum(value))) %>% mutate(total.out=ifelse(is.na(total.out),0,total.out)) %>%
+      mutate(plsbepositive = value - total.out) %>%
+      na.omit()
+
+
+    if (any(test.transitions$plsbepositive < 0)) {
+      warning("Problem with transitions, there is more area allocated than available.")
+
+
+
+      final.trans.ns <- final.trans.ns %>% left_join(test.transitions %>% filter(plsbepositive<0) %>%
+                                                       mutate(factor=value/total.out) %>%
+                                                       dplyr::select(ns, lu.from, factor)) %>%
+        mutate(value=ifelse(is.na(factor),value, value*factor)) %>% dplyr::select(-factor)
+
+    }
+
+
+
+    test.transitions <- curr.init.DS %>% dplyr::select(-times) %>%
+      full_join(final.trans.ns %>%
+                  group_by(REGION, ns, lu.from) %>%
+                  summarise(total.out =mysum(value))) %>% mutate(total.out=ifelse(is.na(total.out),0,total.out)) %>%
       mutate(plsbepositive = value - total.out) %>%
       na.omit()
 
 
 
 
-    if (any(test.transitions$plsbepositive < (-0.0001))) {
-      warning("Problem with transitions, there is more area allocated than available.")
 
-    }
+
+
+
+
+
+
+
+
 
 
 
     #fill transitions with curr.init.ds missing areas
     remaining.self.transitions <- test.transitions %>%
-      filter(plsbepositive > 0.0000000001) %>%
+      filter(plsbepositive > 0) %>%
       mutate(lu.to = lu.from, value = plsbepositive, times=iii) %>%
-      select(REGION, times, ns, lu.from, lu.to, value)
+      dplyr::select(REGION, times, ns, lu.from, lu.to, value)
 
 
 
@@ -649,19 +709,13 @@ g4mid_to_simuid <- function(DS.res = out.res,
 
 
 
-
-
-
-
-
-
     #update curr.init.ds by summarising over lu.to
 
     curr.init.DS <- final.trans %>%
       group_by(REGION, ns, lu.to, times) %>%
-      summarise(value = sum(value)) %>%
+      summarise(value = mysum(value)) %>%
       rename("lu.from" = "lu.to") %>%
-      mutate(times=times+10)
+      mutate(times=iii+10)
 
 
 
@@ -679,47 +733,54 @@ g4mid_to_simuid <- function(DS.res = out.res,
         lu.from = recode(
           lu.from,
           "forest_old_ha" = "G4Mland",
-          "forest_old_ha" = "G4Mland",
+          "forest_new_ha" = "G4Mland",
           "OthNatLnd" = "G4Mland")) %>%
       group_by(REGION, ns, lu.from, times) %>%
-      summarise(value = sum(value))%>%
-      subset(lu.from == 'G4Mland')
+      summarise(value = mysum(value))%>%
+      subset(lu.from == 'G4Mland')%>%
+      mutate(times = times - 10)
+
+
 
     DS.init.grass <-
       curr.init.DS %>%
       group_by(REGION, ns, lu.from, times) %>%
-      summarise(value = sum(value)) %>%
-      subset(lu.from == 'Grass')
+      summarise(value = mysum(value)) %>%
+      subset(lu.from == 'Grass')%>%
+      mutate(times = times - 10)
+
 
     DS.init.crop <-
       curr.init.DS %>%
       group_by(REGION, ns, lu.from, times) %>%
-      summarise(value = sum(value)) %>%
-      subset(lu.from == 'CrpLnd')
+      summarise(value = mysum(value)) %>%
+      subset(lu.from == 'CrpLnd')%>%
+      mutate(times = times - 10)
 
     DS.init.plt <-
       curr.init.DS %>%
       group_by(REGION, ns, lu.from, times) %>%
-      summarise(value = sum(value)) %>%
-      subset(lu.from == 'PltFor')
+      summarise(value = mysum(value)) %>%
+      subset(lu.from == 'PltFor')%>%
+      mutate(times = times - 10)
 
 
 
     forest.weighting <- mapping %>%
-      left_join((DS.init.g4mland %>% ungroup() %>% select(ns, value))) %>%
-      na.omit() %>% group_by(g4m_id) %>% mutate(weight = value / sum(value)) %>% ungroup() %>% select(g4m_id, ns, weight)
+      left_join((DS.init.g4mland %>% ungroup() %>% dplyr::select(ns, value))) %>%
+      na.omit() %>% group_by(g4m_id) %>% mutate(weight = value / mysum(value)) %>% ungroup() %>% dplyr::select(g4m_id, ns, weight)
 
     grass.weighting <- mapping %>%
-      left_join((DS.init.grass %>% ungroup() %>% select(ns, value))) %>%
-      na.omit() %>% group_by(g4m_id) %>% mutate(weight = value / sum(value)) %>% ungroup() %>% select(g4m_id, ns, weight)
+      left_join((DS.init.grass %>% ungroup() %>% dplyr::select(ns, value))) %>%
+      na.omit() %>% group_by(g4m_id) %>% mutate(weight = value / mysum(value)) %>% ungroup() %>% dplyr::select(g4m_id, ns, weight)
 
     crop.weighting <- mapping %>%
-      left_join((DS.init.crop %>% ungroup() %>% select(ns, value))) %>%
-      na.omit() %>% group_by(g4m_id) %>% mutate(weight = value / sum(value)) %>% ungroup() %>% select(g4m_id, ns, weight)
+      left_join((DS.init.crop %>% ungroup() %>% dplyr::select(ns, value))) %>%
+      na.omit() %>% group_by(g4m_id) %>% mutate(weight = value / mysum(value)) %>% ungroup() %>% dplyr::select(g4m_id, ns, weight)
 
     plt.weighting <- mapping %>%
-      left_join((DS.init.plt %>% ungroup() %>% select(ns, value))) %>%
-      na.omit() %>% group_by(g4m_id) %>% mutate(weight = value / sum(value)) %>% ungroup() %>% select(g4m_id, ns, weight)
+      left_join((DS.init.plt %>% ungroup() %>% dplyr::select(ns, value))) %>%
+      na.omit() %>% group_by(g4m_id) %>% mutate(weight = value / mysum(value)) %>% ungroup() %>% dplyr::select(g4m_id, ns, weight)
 
 
 
