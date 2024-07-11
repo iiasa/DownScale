@@ -34,10 +34,11 @@ g4mid_to_simuid <- function(DS.res = out.res,
 
   G4M.res <-
     G4M.res %>% dplyr::select(g4m_id, year, forest_old_ha, forest_new_ha) %>%
-    group_by(g4m_id) %>% mutate(
+    group_by(g4m_id) %>% mutate(forest_old_ha=forest_old_ha/1000,
+                                forest_new_ha=forest_new_ha/1000) %>%
+    mutate(
       deforestation = forest_old_ha - lag(forest_old_ha, n = 2),
-      afforestation = forest_new_ha - lag(forest_new_ha, n =
-                                            2),
+      afforestation = forest_new_ha - lag(forest_new_ha, n = 2),
       g4m_id = as.character(g4m_id)
     ) %>%
     filter(year %% 10 == 0) %>% na.omit()

@@ -159,6 +159,35 @@ init_xmat <-
   setNames(c("SimUID" , "REGION", "variable" , "value")) %>% mutate(across(everything(), as.character)) %>%
   mutate(value = as.numeric(value))
 
+### YW 20240306: Addressing the duplication in init_xmat (for regions singled out when switching from REGION30->REGION37)
+# init_xmat0 <- init_xmat
+init_xmat_wide <- pivot_wider(init_xmat,names_from = "variable",values_from = "value")
+
+### regional clusters with duplicated values (identified by comparing REGION30 & REGION37 mapping)
+init_xmat_g1 <- init_xmat_wide %>%
+  subset(REGION %in% c("RSAM","ArgentinaReg")) %>% arrange(SimUID, REGION)
+init_xmat_g2 <- init_xmat_wide %>%
+  subset(REGION %in% c("Former_USSR","RussiaReg","UkraineReg")) %>% arrange(SimUID, desc(REGION))
+init_xmat_g3 <- init_xmat_wide %>%
+  subset(REGION %in% c("RSEA_OPA","IndonesiaReg","MalaysiaReg")) %>% arrange(SimUID, desc(REGION))
+
+### removing the duplicated: list duplicated ns and use subset()
+init_xmat_dupGroups <- rbind(rbind(init_xmat_g1,init_xmat_g2),init_xmat_g3)
+
+dup_ns <-  init_xmat_dupGroups %>%
+  subset(REGION %in% c("ArgentinaReg","RussiaReg","UkraineReg","IndonesiaReg","MalaysiaReg")) %>% select(SimUID) %>% as.matrix()
+
+init_xmat_wide_update <- init_xmat_wide %>%
+  subset(   !(  (SimUID %in% dup_ns) & (REGION %in% c("RSAM","Former_USSR","RSEA_OPA")) )  )
+
+init_xmat_update <- init_xmat_wide_update %>%
+  pivot_longer(cols=!c(SimUID,REGION), names_to = "variable", values_to = "value") %>%
+  na.omit()
+init_xmat <- init_xmat_update
+
+### END YW
+
+
 LUC_Fin <-
   rgdx.param(file.path(paste0("source/LUC_Fin_Write_SSP2_msg07Ukraine37R")), "LUC_Fin") %>%
   setNames(c("SimUID", "lu.class", "value")) %>% mutate(across(everything(), as.character)) %>%
