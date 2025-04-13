@@ -23,3 +23,13 @@
 .Rproj.user
 .Rhistory
 *.Rproj
+
+/Condor/
+/gdx/
+/renv/
+/input/*.*
+renv.lock
+.Rprofile
+downscaling_pars.RData
+
+
