@@ -1,6 +1,5 @@
-## Updated main downscaling script 
-## Define region resolution here. In the next this script should be adapted to accept a region aggregation argument from downscaling config.RData.
-REGION_RESOLUTION<-"REGION59"
+## main downscaling script for the GLOBIOM-G4M-Link pipeline
+## Last update: 2025 Apr 13
 
 ## package loading
 
@@ -20,11 +19,14 @@ parameters <- readRDS("downscaling_pars.RData")
 ISIMIP <- parameters[[1]] #to be kept as FALSE except for ISIMIP scens // TRUE -> changes starting maps
 cluster <- parameters[[2]] #if TRUE run and scengrid must be passed on from GAMS
 
+## Read region resolution parameter
+REGION_RESOLUTION <- paste0("REGION",parameters[[6]])
+
 # run <- run.nr #from GAMS
 # scengrid <- AllscenLoop #from GAMS
 
 if(cluster){
-  ####################
+  #=================#
   # to be changed by the modeler based on current project
   project <- parameters[[3]] #as in GAMS
   lab <- parameters[[4]] #as in GAMS
@@ -32,19 +34,19 @@ if(cluster){
   GAMSPath <- c("C:/GAMS/42/") #YW
   igdx(GAMSPath)
   gdx_path <- "./gdx/downscaled.gdx" #output location of downscaling result (Land_Cover_SU_Region_SCEN)
-  ####################
+  #=================#
   args <- commandArgs(trailingOnly=TRUE)
   run <- as.integer(args[[1]])
 #  dir.create("output")
 
 } else {
-  ####################
+  #=================#
   # to be changed by the modeler based on current project
   project <- parameters[[3]] #as in GAMS
   lab <- parameters[[4]] #as in GAMS
 #  GAMSPath = c("C:/GAMS/win64/29.1") #if run on cluster/ need limpopo GAMS path
   gdx_path <- "./gdx/downscaled.gdx" #output location of downscaling result (Land_Cover_SU_Region_SCEN)
-  ####################
+  #=================#
 }
 
 
@@ -276,41 +278,7 @@ for(scen in scenarios){
     )
   sum_crop_area = area_crop_unit_input %>% group_by(SimUID) %>% summarise(area = sum(area))
 
-  curr.SRP_Suit <- SRP_Suit %>% subset(REGION == rrr) %>%
-    mutate(value = ifelse(value == 0, .0001, value)) %>%
-    mutate(value = value / max(value)) %>%
-    rename(ns = SimUID) %>% dplyr::select(ns, value)
-  curr.SRP_Suit = bind_cols(lu.from = "CrpLnd", lu.to = "PltFor", curr.SRP_Suit) %>%
-    bind_rows(bind_cols(lu.from = "Grass", lu.to = "PltFor", curr.SRP_Suit)) %>%
-    bind_rows(bind_cols(lu.from = "OthNatLnd", lu.to = "PltFor", curr.SRP_Suit)) %>%
-    bind_rows(
-      bind_cols(lu.from = "PltFor", lu.to = "OthNatLnd", curr.SRP_Suit) %>%
-        mutate(value = 1 / value) %>% mutate(value = value / max(value))
-    )
-    
-if(REGION_RESOLUTION=="REGION37"){
-  prior_RstLnd <- read.csv(file="source/RstLnd_prior_10Dec2018_YWaddPltFor.csv") %>% left_join(full.map %>% mutate(SimUID=as.integer(SimUID))) %>% select(-c(ALLCOUNTRY,REGION59)) %>% subset(REGION == rrr) %>% rename(ns=SimUID)
-}
-if(REGION_RESOLUTION=="REGION59"){
-  prior_RstLnd <- read.csv(file="source/RstLnd_prior_10Dec2018_YWaddPltFor.csv") %>% left_join(full.map %>% mutate(SimUID=as.integer(SimUID))) %>% select(-c(ALLCOUNTRY,REGION)) %>% dplyr::rename(REGION=REGION59) %>% subset(REGION == rrr) %>% rename(ns=SimUID)
-}
 
-  prior_RstLnd1 <- prior_RstLnd %>%
-    dplyr::select(c(ns,prior_CrpLnd_RstLnd))%>% mutate(lu.from="CrpLnd") %>% mutate(lu.to="RstLnd") %>% rename(value=prior_CrpLnd_RstLnd) %>%
-    dplyr::select(lu.from,lu.to,ns,value)
-
-  prior_RstLnd2 <- prior_RstLnd %>%
-    dplyr::select(c(ns,prior_GrsLnd_RstLnd))%>% mutate(lu.from="Grass") %>% mutate(lu.to="RstLnd") %>% rename(value=prior_GrsLnd_RstLnd) %>%
-    dplyr::select(lu.from,lu.to,ns,value)
-
-  prior_RstLnd3 <- prior_RstLnd %>%
-    dplyr::select(c(ns,prior_GrsLnd_RstLnd))%>% mutate(lu.from="PltFor") %>% mutate(lu.to="RstLnd") %>% rename(value=prior_GrsLnd_RstLnd) %>%
-    dplyr::select(lu.from,lu.to,ns,value)
-
-  curr.SRP_Suit <- rbind(curr.SRP_Suit,prior_RstLnd1,prior_RstLnd2,prior_RstLnd3)
-
- ###complete curr.SRP_Suit: filling na with 0 (otherwise err.check.input will report error)
-  curr.SRP_Suit <- merge(unique(xmat$ns), unique(curr.SRP_Suit[,c(1,2)])) %>% rename("ns"="x") %>% left_join(curr.SRP_Suit %>% mutate(ns=as.character(ns))) %>% mutate(weight=ifelse(is.na(value),0,1), value=ifelse(is.na(value),0,value))
 
   if(ISIMIP==FALSE){
     init.areas <-
@@ -350,7 +318,7 @@ if(REGION_RESOLUTION=="REGION59"){
       read.csv(file="source/SimU_LU_biodiv_G4M_jan19_YWaddRst0.csv") %>%
       mutate(SimUID=row.names(.)) %>% subset(SimUID%in%unique((LUC_Fin %>% subset(REGION == rrr))$SimUID))
     ##define "conservation scenarios" here:
-    if((curr.SCEN3 %in% c("CONS","CLIM_CONS","CLIM_CONS_SDGE","CLIM_CONS_SDGL","CLIM_CONS_SDGEL"))|(curr.SCEN1 %in% c("SSP1","SSP4","SSP5"))){
+    if(grepl(pattern = "CONS",x = curr.SCEN3) |(curr.SCEN1 %in% c("SSP1","SSP5"))){
       init.areas <- init.areas.CSV %>%
         dplyr::select(!c( restored, urban))  %>%
         mutate(Forest=priforest+mngforest) %>%
@@ -394,6 +362,44 @@ if(REGION_RESOLUTION=="REGION59"){
  ###complete xmat: filling na with 0
   xmat <- unique(merge(unique(init.areas$ns), unique(xmat$ks)) %>% rename("ns"="x", "ks"="y") %>% left_join(xmat) %>% mutate(value=ifelse(is.na(value),0,value)))
 
+  
+  curr.SRP_Suit <- SRP_Suit %>% subset(REGION == rrr) %>%
+    mutate(value = ifelse(value == 0, .0001, value)) %>%
+    mutate(value = value / max(value)) %>%
+    rename(ns = SimUID) %>% dplyr::select(ns, value)
+  curr.SRP_Suit = bind_cols(lu.from = "CrpLnd", lu.to = "PltFor", curr.SRP_Suit) %>%
+    bind_rows(bind_cols(lu.from = "Grass", lu.to = "PltFor", curr.SRP_Suit)) %>%
+    bind_rows(bind_cols(lu.from = "OthNatLnd", lu.to = "PltFor", curr.SRP_Suit)) %>%
+    bind_rows(
+      bind_cols(lu.from = "PltFor", lu.to = "OthNatLnd", curr.SRP_Suit) %>%
+        mutate(value = 1 / value) %>% mutate(value = value / max(value))
+    )
+  
+  if(REGION_RESOLUTION=="REGION37"){
+    prior_RstLnd <- read.csv(file="source/RstLnd_prior_10Dec2018_YWaddPltFor.csv") %>% left_join(full.map %>% mutate(SimUID=as.integer(SimUID))) %>% select(-c(ALLCOUNTRY,REGION59)) %>% subset(REGION == rrr) %>% rename(ns=SimUID)
+  }
+  if(REGION_RESOLUTION=="REGION59"){
+    prior_RstLnd <- read.csv(file="source/RstLnd_prior_10Dec2018_YWaddPltFor.csv") %>% left_join(full.map %>% mutate(SimUID=as.integer(SimUID))) %>% select(-c(ALLCOUNTRY,REGION)) %>% dplyr::rename(REGION=REGION59) %>% subset(REGION == rrr) %>% rename(ns=SimUID)
+  }
+  
+  prior_RstLnd1 <- prior_RstLnd %>%
+    dplyr::select(c(ns,prior_CrpLnd_RstLnd))%>% mutate(lu.from="CrpLnd") %>% mutate(lu.to="RstLnd") %>% rename(value=prior_CrpLnd_RstLnd) %>%
+    dplyr::select(lu.from,lu.to,ns,value)
+  
+  prior_RstLnd2 <- prior_RstLnd %>%
+    dplyr::select(c(ns,prior_GrsLnd_RstLnd))%>% mutate(lu.from="Grass") %>% mutate(lu.to="RstLnd") %>% rename(value=prior_GrsLnd_RstLnd) %>%
+    dplyr::select(lu.from,lu.to,ns,value)
+  
+  prior_RstLnd3 <- prior_RstLnd %>%
+    dplyr::select(c(ns,prior_GrsLnd_RstLnd))%>% mutate(lu.from="PltFor") %>% mutate(lu.to="RstLnd") %>% rename(value=prior_GrsLnd_RstLnd) %>%
+    dplyr::select(lu.from,lu.to,ns,value)
+  
+  curr.SRP_Suit <- rbind(curr.SRP_Suit,prior_RstLnd1,prior_RstLnd2,prior_RstLnd3)
+  
+  ###complete curr.SRP_Suit: filling na with 0 (otherwise err.check.input will report error)
+  curr.SRP_Suit <- merge(unique(xmat$ns), unique(curr.SRP_Suit[,c(1,2)])) %>% rename("ns"="x") %>% left_join(curr.SRP_Suit %>% mutate(ns=as.character(ns))) %>% mutate(weight=ifelse(is.na(value),0,1), value=ifelse(is.na(value),0,value))
+  
+  
   DDelta <-
     LUC_COMPARE_SCEN0 %>% filter(lu.from != "MngFor" &
                                    lu.to != "PriFor") %>%
