@@ -21,8 +21,13 @@ parameters <- readRDS("downscaling_pars.RData")
 ISIMIP <- parameters[[1]] #to be kept as FALSE except for ISIMIP scens // TRUE -> changes starting maps
 ## parameter for running locally or in limpopo
 cluster <- parameters[[2]] #if TRUE run and scengrid must be passed on from GAMS
+## parameter for scenario mapping
+scenario_mapping <- parameters[[5]]
 ## parameter for region resolution
 REGION_RESOLUTION <- parameters[[6]]
+## parameter for BTC scenarios
+THERE_ARE_BTC_Scenarios <- parameters[[7]]
+SCENARIOS_BTC <- parameters[[8]]
 
 # run <- run.nr #from GAMS
 # scengrid <- AllscenLoop #from GAMS
@@ -279,6 +284,7 @@ for(scen in scenarios){
   rrr <- scengrid$REGION[idx]
 
 ### (i) crop area and starting maps -----
+  ## crop area map
   area_crop_unit_input = subset(AREA, REGION == rrr) %>% rename(area = value) %>%
     left_join(
       subset(Yield_Simu, REGION == rrr) %>%
@@ -320,14 +326,22 @@ for(scen in scenarios){
 
   }
 
-
-  ADD_BTC_TO_DOWNS <- TRUE
-  if(ADD_BTC_TO_DOWNS){
+  USE_New_Initial_Map_for_BTC_compatible <- TRUE
+  if(USE_New_Initial_Map_for_BTC_compatible){
+  ## Further update the initial LC map: depending on BTC activated or not, use different starting maps
     init.areas.CSV <-
       read.csv(file="source/SimU_LU_biodiv_G4M_jan19_YWaddRst0.csv") %>%
       mutate(SimUID=row.names(.)) %>% subset(SimUID%in%unique((LUC_Fin %>% subset(REGION == rrr))$SimUID))
-    ##define "conservation scenarios" here:
-    if(grepl(pattern = "CONS",x = curr.SCEN3) |(curr.SCEN1 %in% c("SSP1","SSP5"))){
+
+    ## filter BTC scenarios:
+    scenario_name_DS_wBTC <- scenario_mapping %>%
+      filter(ScenLoop %in% SCENARIOS_BTC) %>%
+      dplyr::select(-c(RegionName, ScenNr,ScenLoop)) %>%
+      distinct() %>%
+      mutate(Scenario=paste0(SCEN1,"_",SCEN2,"_",SCEN3))
+
+    if(sum(grepl(pattern = paste0(curr.SCEN1,"_",curr.SCEN2,"_",curr.SCEN3),x = scenario_name_DS_wBTC$Scenario))){
+      #for scenarios with BTC conservation: introduce protected_priforest and protected_other
       init.areas <- init.areas.CSV %>%
         dplyr::select(!c( restored, urban))  %>%
         mutate(Forest=priforest+mngforest) %>%
@@ -339,15 +353,15 @@ for(scen in scenarios){
                                                     "other"="OthNatLnd",
                                                     "priforest"="PriFor",
                                                     "SRP"="PltFor",
-                                                    "mngforest"="MngFor",))
+                                                    "mngforest"="MngFor"))
 
     }else{
+      #for scenarios without BTC conservation
       init.areas <- init.areas.CSV %>%
         # check.areas <- init.areas.CSV %>%
         dplyr::select(!c( restored, urban))  %>%
         mutate(Forest=priforest+mngforest) %>%
         dplyr::select(!c( priforest, mngforest))  %>%
-        #Yazhen: for scenarios without BIOD protection
         mutate(Forest=Forest+protected_priforest)  %>%
         mutate(protected_priforest=0)  %>%
         mutate(other=other+protected_other)  %>%
@@ -359,12 +373,10 @@ for(scen in scenarios){
                                                     "other"="OthNatLnd",
                                                     "priforest"="PriFor",
                                                     "SRP"="PltFor",
-                                                    "mngforest"="MngFor",))
+                                                    "mngforest"="MngFor"))
+    } # different treatments for BTC and non-BTC scenarios
+  }
 
-    } # different treatments for BIOD scens, and non-BIOD scens
-  } # if add BTC protection layers for specific sceanarios
-
-  
   ### (ii) xmat -----
   xmat <- init_xmat %>% subset(REGION == rrr) %>%
     rename(ns = SimUID, ks = variable) %>% dplyr::select(-REGION)#explanatory variables
