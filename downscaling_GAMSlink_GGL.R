@@ -27,7 +27,11 @@ scenario_mapping <- parameters[[5]]
 REGION_RESOLUTION <- parameters[[6]]
 ## parameter for BTC scenarios
 THERE_ARE_BTC_Scenarios <- parameters[[7]]
-SCENARIOS_BTC <- parameters[[8]]
+if(THERE_ARE_BTC_Scenarios){
+  SCENARIOS_BTC <- parameters[[8]]
+}else{
+  SCENARIOS_BTC <- NULL
+}
 
 # run <- run.nr #from GAMS
 # scengrid <- AllscenLoop #from GAMS
@@ -326,14 +330,14 @@ for(scen in scenarios){
 
   }
 
+  ## Further update the initial LC map: will use the updated init.areas.CSV (not the default LUC.Fin above) and further process it depending on BTC activated or not
   USE_New_Initial_Map_for_BTC_compatible <- TRUE
   if(USE_New_Initial_Map_for_BTC_compatible){
-  ## Further update the initial LC map: depending on BTC activated or not, use different starting maps
     init.areas.CSV <-
       read.csv(file="source/SimU_LU_biodiv_G4M_jan19_YWaddRst0.csv") %>%
       mutate(SimUID=row.names(.)) %>% subset(SimUID%in%unique((LUC_Fin %>% subset(REGION == rrr))$SimUID))
 
-    ## filter BTC scenarios:
+    ## filter all BTC scenarios in scenario mapping:
     scenario_name_DS_wBTC <- scenario_mapping %>%
       filter(ScenLoop %in% SCENARIOS_BTC) %>%
       dplyr::select(-c(RegionName, ScenNr,ScenLoop)) %>%
@@ -341,7 +345,7 @@ for(scen in scenarios){
       mutate(Scenario=paste0(SCEN1,"_",SCEN2,"_",SCEN3))
 
     if(sum(grepl(pattern = paste0(curr.SCEN1,"_",curr.SCEN2,"_",curr.SCEN3),x = scenario_name_DS_wBTC$Scenario))){
-      #for scenarios with BTC conservation: introduce protected_priforest and protected_other
+      #if the current scenario is with BTC conservation: based on init.areas.CSV and also introduce protected_priforest and protected_other
       init.areas <- init.areas.CSV %>%
         dplyr::select(!c( restored, urban))  %>%
         mutate(Forest=priforest+mngforest) %>%
@@ -356,7 +360,7 @@ for(scen in scenarios){
                                                     "mngforest"="MngFor"))
 
     }else{
-      #for scenarios without BTC conservation
+      #if the current scenario is without BTC conservation: use the init.areas.CSV directly
       init.areas <- init.areas.CSV %>%
         # check.areas <- init.areas.CSV %>%
         dplyr::select(!c( restored, urban))  %>%
