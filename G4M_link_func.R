@@ -7,8 +7,8 @@ G4M_link <- function(downscalr_res, curr.SCEN1, curr.SCEN2, curr.SCEN3){
   dat$ns <- as.numeric(dat$ns)
 
   # map to g4m 0.5degree grids
-  dat1 <- dat %>% left_join(mapping, by=c("ns"="SimUID")) %>% group_by(g4m_05_id, lu.from, times) %>%
-    summarise(value=sum(value)) %>% rename("ScenYear"="times", "LC_TYPES_EPIC"= "lu.from")
+  dat1 <- dat %>% left_join(mapping, by=c("ns"="SimUID")) %>% group_by(g4m_05_id, lu.to, times) %>%
+    summarise(value=sum(value)) %>% rename("ScenYear"="times", "LC_TYPES_EPIC"= "lu.to")
 
   # Assign RstLnd to afforestable or non-afforestable
   mapping_g4mid_xy <- read.csv(file="source/oecd_ssp2_decc2016_reg31.csv") %>%
@@ -61,8 +61,14 @@ G4M_link <- function(downscalr_res, curr.SCEN1, curr.SCEN2, curr.SCEN3){
 
   dat_final <- bind_cols(g4m_05_id=dat4$g4m_05_id, SCEN1=curr.SCEN1, SCEN3=curr.SCEN3,SCEN2=curr.SCEN2,
                    LC_TYPES_EPIC="Reserved", ScenYear=dat4$ScenYear, value=dat4$value) %>%
+    group_by(g4m_05_id, SCEN1, SCEN2, SCEN3, LC_TYPES_EPIC) %>%
+    #' assigned the maximum reserved as long as the reserved land is increasing
+    #' along the simulation period to avoid inconsistencies with G4M afforestation
+    mutate(
+      value_aux = rev(cummax(rev(value)))  # maximum of remaining values at each point
+    ) %>%
     pivot_wider(id_cols=c(g4m_05_id, SCEN1, SCEN3, SCEN2, LC_TYPES_EPIC),
-                names_from = "ScenYear", values_from = "value")
+                names_from = "ScenYear", values_from = "value_aux")
 
 
   # return(dat_final)
