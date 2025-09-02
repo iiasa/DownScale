@@ -64,11 +64,11 @@ G4M_link <- function(downscalr_res, curr.SCEN1, curr.SCEN2, curr.SCEN3){
     group_by(g4m_05_id, SCEN1, SCEN2, SCEN3, LC_TYPES_EPIC) %>%
     #' assigned the maximum reserved as long as the reserved land is increasing
     #' along the simulation period to avoid inconsistencies with G4M afforestation
-    mutate(
-      value_aux = rev(cummax(rev(value)))  # maximum of remaining values at each point
-    ) %>%
+    # mutate(
+    #   value_aux = rev(cummax(rev(value)))  # maximum of remaining values at each point
+    # ) %>%
     pivot_wider(id_cols=c(g4m_05_id, SCEN1, SCEN3, SCEN2, LC_TYPES_EPIC),
-                names_from = "ScenYear", values_from = "value_aux")
+                names_from = "ScenYear", values_from = "value")
 
 
   # return(dat_final)
