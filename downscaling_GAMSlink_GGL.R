@@ -4,7 +4,8 @@
 # 1. Load packages (from /renv/) -----
 
 environment(.libPaths)$.lib.loc = c(
-  "renv/library/R-4.0/x86_64-w64-mingw32",
+  # "renv/library/R-4.0/x86_64-w64-mingw32",
+  "renv/library/R-4.2/x86_64-w64-mingw32", # YW 20251230: now use R-4.2 (as limpopo is also R-4.2) and downscalr pkg version 2023 August, which is more updated than the one in R-4.0 (= a 2022 version of downscalr)
   environment(.libPaths)$.lib.loc)
 
 require("gdxrrw")
@@ -13,6 +14,9 @@ require(dplyr)
 require(downscalr)
 require(tidyverse)
 
+print("==============Session Info====================")
+sessionInfo()
+print("==============End Session Info====================")
 
 # 2. Read downscaling parameters -----
 parameters <- readRDS("downscaling_pars.RData")
@@ -69,6 +73,9 @@ if(cluster){
 ### reg 59 mapping generated with new file create_mapping in DownScale git
 ### full.map | SimUID - ALLCOUNTRY - REGION59 - REGION(37)
 full.map <- readRDS("./source/simu_region_country.rds")
+## Note that in region37 version, as in GLOBIOM/G4M, UK should still be in EU_North instead of ROWE. So renaming the REGION(37) for UK to be in line with GLOBIOM and G4M
+full.map$REGION[full.map$ALLCOUNTRY=="UK"] = "EU_North"
+
 
 ### initial LU level, currently not directly used in DS function, but is used for checking DS result
 LANDCOVER_COMPARE_SCEN <-
@@ -131,6 +138,8 @@ grasyield <- read_table("source/data_GrasYield_X.gms")
 grasyield <-
   grasyield[, c(1, 2)] %>% `colnames<-`(c("SimUID", "grasyield"))
 grasyield$SimUID <- gsub("\\..*", "", grasyield$SimUID)
+grasyield$SimUID <- gsub("\\/24", "24", grasyield$SimUID) # Address the 1st line when reading in grasyield
+grasyield <- na.omit(grasyield)
 
 MngForest_Param <-
   rgdx.param(file.path(paste0("source/Forestparameters")), "MngForest_Param") %>%
@@ -181,51 +190,26 @@ YLD_SSP_STAT <-
 
 ## (3) init_xmat ------
 
-if(REGION_RESOLUTION==59){
-### Read in Xmat.gdx and remap SimuID to REGION59
-init_xmat <-
-  rgdx.param(file.path(paste0("source/Xmat")), "xmat") %>%
-  setNames(c("SimUID" , "REGION", "variable" , "value")) %>% mutate(across(everything(), as.character)) %>%
-  mutate(value = as.numeric(value)) %>% ungroup() %>% dplyr::select(-REGION) %>% left_join(full.map %>% ungroup() %>% dplyr::select(SimUID, REGION59) %>% rename("REGION"="REGION59"))
-
-### Remove duplications in init_xmat
-init_xmat <- init_xmat %>%
-  distinct(.keep_all = TRUE)
-}
-
-if(REGION_RESOLUTION==37){
 init_xmat <-
   rgdx.param(file.path(paste0("source/Xmat")), "xmat") %>%
   setNames(c("SimUID" , "REGION", "variable" , "value")) %>% mutate(across(everything(), as.character)) %>%
   mutate(value = as.numeric(value))
-  
+
+if(REGION_RESOLUTION==59){
+ ### Read in Xmat.gdx and remap SimuID to REGION59
+ init_xmat <-  init_xmat %>% 
+   ungroup() %>% dplyr::select(-REGION) %>% left_join(full.map %>% ungroup() %>% dplyr::select(SimUID, REGION59) %>% rename("REGION"="REGION59"))
+}else{ 
+ #if(REGION_RESOLUTION==37)
+ ### Read in Xmat.gdx and remap SimuID to REGION37
+  init_xmat <-  init_xmat %>% 
+    ungroup() %>% dplyr::select(-REGION) %>% left_join(full.map %>% ungroup() %>% dplyr::select(SimUID, REGION))
+  }
+
 ### Remove duplications in init_xmat
-init_xmat_wide <- pivot_wider(init_xmat,names_from = "variable",values_from = "value")
+init_xmat <- init_xmat %>%
+  distinct(.keep_all = TRUE)
 
-#### regional clusters with duplicated values (identified by comparing REGION30 & REGION37 mapping)
-init_xmat_g1 <- init_xmat_wide %>%
-  subset(REGION %in% c("RSAM","ArgentinaReg")) %>% arrange(SimUID, REGION)
-init_xmat_g2 <- init_xmat_wide %>%
-  subset(REGION %in% c("Former_USSR","RussiaReg","UkraineReg")) %>% arrange(SimUID, desc(REGION))
-init_xmat_g3 <- init_xmat_wide %>%
-  subset(REGION %in% c("RSEA_OPA","IndonesiaReg","MalaysiaReg")) %>% arrange(SimUID, desc(REGION))
-
-#### removing the duplicated: list duplicated ns and use subset()
-init_xmat_dupGroups <- rbind(rbind(init_xmat_g1,init_xmat_g2),init_xmat_g3)
-
-dup_ns <-  init_xmat_dupGroups %>%
-  subset(REGION %in% c("ArgentinaReg","RussiaReg","UkraineReg","IndonesiaReg","MalaysiaReg")) %>% select(SimUID) %>% as.matrix()
-
-init_xmat_wide_update <- init_xmat_wide %>%
-  subset(   !(  (SimUID %in% dup_ns) & (REGION %in% c("RSAM","Former_USSR","RSEA_OPA")) )  )
-init_xmat_update <- init_xmat_wide_update %>%
-  pivot_longer(cols=!c(SimUID,REGION), names_to = "variable", values_to = "value") %>%
-  na.omit()
-init_xmat <- init_xmat_update
-
-### END Remove duplications in init_xmat
-
-}
 
 ## (4) LUC_Fin, SRP_Suit, trans_factors, luc_downscl_coeff, AREA, Yield_Simu  ------
 LUC_Fin <-
@@ -325,12 +309,13 @@ for(scen in scenarios){
                                                   "other"="OthNatLnd",
                                                   "priforest"="PriFor",
                                                   "SRP"="PltFor",
-                                                  "mngforest"="MngFor",))
+                                                  "mngforest"="MngFor"))
 
 
   }
 
-  ## Further update the initial LC map: will use the updated init.areas.CSV (not the default LUC.Fin above) and further process it depending on BTC activated or not
+  #YW 20251230 update: try using BTC layer for all scenarios, so that to ensure the downscaled results are the same until 2020.
+  # Further update the initial LC map: will use the updated init.areas.CSV (not the default LUC.Fin above) and further process it depending on BTC activated or not
   USE_New_Initial_Map_for_BTC_compatible <- TRUE
   if(USE_New_Initial_Map_for_BTC_compatible){
     init.areas.CSV <-
@@ -344,8 +329,6 @@ for(scen in scenarios){
       distinct() %>%
       mutate(Scenario=paste0(SCEN1,"_",SCEN2,"_",SCEN3))
 
-    if(sum(grepl(pattern = paste0(curr.SCEN1,"_",curr.SCEN2,"_",curr.SCEN3),x = scenario_name_DS_wBTC$Scenario))){
-      #if the current scenario is with BTC conservation: based on init.areas.CSV and also introduce protected_priforest and protected_other
       init.areas <- init.areas.CSV %>%
         dplyr::select(!c( restored, urban))  %>%
         mutate(Forest=priforest+mngforest) %>%
@@ -358,27 +341,6 @@ for(scen in scenarios){
                                                     "priforest"="PriFor",
                                                     "SRP"="PltFor",
                                                     "mngforest"="MngFor"))
-
-    }else{
-      #if the current scenario is without BTC conservation: use the init.areas.CSV directly
-      init.areas <- init.areas.CSV %>%
-        # check.areas <- init.areas.CSV %>%
-        dplyr::select(!c( restored, urban))  %>%
-        mutate(Forest=priforest+mngforest) %>%
-        dplyr::select(!c( priforest, mngforest))  %>%
-        mutate(Forest=Forest+protected_priforest)  %>%
-        mutate(protected_priforest=0)  %>%
-        mutate(other=other+protected_other)  %>%
-        mutate(protected_other=0)  %>%
-        pivot_longer(cols = c(!SimUID), names_to = "lu.from", values_to = "value") %>%
-        mutate(value=value*0.001) %>%
-        rename(ns=SimUID) %>% mutate(lu.from=recode(lu.from,"cropland"="CrpLnd",
-                                                    "grassland"="Grass",
-                                                    "other"="OthNatLnd",
-                                                    "priforest"="PriFor",
-                                                    "SRP"="PltFor",
-                                                    "mngforest"="MngFor"))
-    } # different treatments for BTC and non-BTC scenarios
   }
 
   ### (ii) xmat -----
@@ -476,6 +438,13 @@ for(scen in scenarios){
         bind_cols(lu.to = "CrpLnd") %>% filter(lu.to != lu.from)
     )
 
+  # YW below two lines can be used in the future to complete the curr.crop_projections, when yield for specific crop-mngmnt doesn't exist for an ns in YLD_SSP_STAT, then use the country average for this crop-mngmnt for this ns. (but not implemented yet)
+  Yield_Simu_average <- Yield_Simu %>% 
+    group_by(REGION,country, CROP, mgmt_sys) %>% 
+    summarise(value_countryAve=mean(value,na.rm=TRUE)) %>% 
+    ungroup()
+  Yield_Simu0 <- Yield_Simu
+  
   curr.crop_projections = subset(AREA, REGION == rrr) %>% rename(area = value) %>%
     left_join(
       subset(Yield_Simu, REGION == rrr) %>% dplyr::select(SimUID, CROP, mgmt_sys, value) %>%
@@ -488,7 +457,7 @@ for(scen in scenarios){
         bind_rows(
           subset(YLD_SSP_STAT, REGION == rrr &
                    SCEN1 == curr.SCEN1) %>% expand(CROP, year =
-                                                             2000, value = 1)
+                                                             2000, value = 1) # YW this causes NA, maybe need to add 'REGION=rrr' in expand()
         ) %>%
         rename(shifters = value),
       by = c("CROP", "REGION")
