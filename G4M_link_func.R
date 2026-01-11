@@ -74,15 +74,28 @@ G4M_link <- function(downscalr_res, curr.SCEN1, curr.SCEN2, curr.SCEN3){
   # return(dat_final)
 
   #=======YW 20240308: Adding this part to output an additional table for G4M: ordered affor=====
+  dat_2000 <- dat %>% left_join(mapping, by=c("ns"="SimUID")) %>% group_by(g4m_05_id, lu.from, times) %>%
+    summarise(value=sum(value)) %>%
+    filter(times %in% "2010") %>%
+    mutate(times = "2000") %>%  #2010 lu.from = LC at the end of 2000
+    rename("ScenYear"="times", "LC_TYPES_EPIC"= "lu.from") %>%
+    mutate(ScenYear=as.numeric(as.character(ScenYear))) %>%
+    left_join(maplayer_isforest) %>%
+    mutate(IsForest=ifelse(is.na(IsForest),0,IsForest)) %>%
+    left_join(df.aux.1)
+  dat_2000$LC_TYPES_EPIC[dat_2000$LC_TYPES_EPIC=="RstLnd"] = dat_2000$Rst_Type[dat_2000$LC_TYPES_EPIC=="RstLnd"]
+  dat_2000 <- dat_2000 %>% select(-c(Rst_Type))
+
   df.aux.2 <- data.frame(IsForest=c(1,0),Nat_Type=c("NatLnd_forestBiome","NatLnd_grassBiome"))
 
-  dat2_category <- dat2 %>% left_join(df.aux.2)
+  dat2_category <- rbind(dat_2000,dat2) %>%
+    left_join(df.aux.2)
   dat2_category$LC_TYPES_EPIC[dat2_category$LC_TYPES_EPIC=="OthNatLnd"] = dat2_category$Nat_Type[dat2_category$LC_TYPES_EPIC=="OthNatLnd"]
   dat2_category <- dat2_category %>% select(-c(IsForest,Nat_Type))
 
   Array_NewAffor_LC <- c("RstLnd_YesAffor","NatLnd_forestBiome","NatLnd_grassBiome")
   dat2_category_select <- dat2_category %>%
-    subset(LC_TYPES_EPIC %in% c("RstLnd_YesAffor","NatLnd_forestBiome","NatLnd_grassBiome")) %>%
+    # subset(LC_TYPES_EPIC %in% c("RstLnd_YesAffor","NatLnd_forestBiome","NatLnd_grassBiome")) %>% ## YW 20251030: now commenting out, to expor all LC for G4M for test
     mutate(SCEN1=curr.SCEN1, SCEN3=curr.SCEN3, SCEN2=curr.SCEN2) %>%
     pivot_wider(id_cols=c(g4m_05_id, SCEN1, SCEN3, SCEN2, ScenYear),
                 names_from = "LC_TYPES_EPIC", values_from = "value")
@@ -98,6 +111,7 @@ G4M_link <- function(downscalr_res, curr.SCEN1, curr.SCEN2, curr.SCEN3){
   ## final processing, and data output
  if(!nrow(dat_final)==0){
 
+   # Add the "Reserved" column
   dat_final_column <- dat_final %>%
     pivot_longer(cols = -c(g4m_05_id,SCEN1,SCEN3,SCEN2,LC_TYPES_EPIC),names_to = "ScenYear",values_to = "value") %>%
     mutate(ScenYear=as.integer(ScenYear)) %>%
@@ -109,12 +123,12 @@ G4M_link <- function(downscalr_res, curr.SCEN1, curr.SCEN2, curr.SCEN3){
     mutate(NatLnd_grassBiome=ifelse(is.na(NatLnd_grassBiome),0,NatLnd_grassBiome)) %>%
     mutate(Total_avail_newAffor=RstLnd_YesAffor+NatLnd_forestBiome+NatLnd_grassBiome) %>%
     left_join(dat_final_column,by = c("g4m_05_id", "SCEN1", "SCEN3", "SCEN2","ScenYear")) %>%
-    mutate(Reserved=ifelse(is.na(Reserved),0,Reserved)) %>%
-    select(g4m_05_id, SCEN1, SCEN3, SCEN2, ScenYear, Reserved, RstLnd_YesAffor, NatLnd_forestBiome, NatLnd_grassBiome, Total_avail_newAffor) # reorder the columns
+    mutate(Reserved=ifelse(is.na(Reserved),0,Reserved)) #%>%
+   # select(g4m_05_id, SCEN1, SCEN3, SCEN2, ScenYear, Reserved, RstLnd_YesAffor, NatLnd_forestBiome, NatLnd_grassBiome, Total_avail_newAffor) # reorder the columns
 
-  dat2_output_for_g4m2 <- dat2_output_for_g4m %>%
-    pivot_longer(cols=c(RstLnd_YesAffor, NatLnd_forestBiome, NatLnd_grassBiome, Total_avail_newAffor),names_to = "LC_TYPES",values_to = "value") %>%
-    pivot_wider(names_from = "ScenYear",values_from = "value")
+  # dat2_output_for_g4m2 <- dat2_output_for_g4m %>%
+  #   pivot_longer(cols=c(RstLnd_YesAffor, NatLnd_forestBiome, NatLnd_grassBiome, Total_avail_newAffor),names_to = "LC_TYPES",values_to = "value") %>%
+  #   pivot_wider(names_from = "ScenYear",values_from = "value")
 
   #=======END YW 20240308========
 
