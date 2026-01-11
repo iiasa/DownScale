@@ -718,53 +718,15 @@ cons_data[[2]] <- data_for_g4m
 cons_data[[3]] <- res
 cons_data[[4]] <- chck.DS.targets
 cons_data[[5]] <- chck.DS.LC
+cons_data[[6]] <- data_link_ds_g4m[[3]] ## for outputting 
 
-saveRDS(cons_data,"gdx/output.RData")
+# saveRDS(cons_data,"gdx/output.RData")
+saveRDS(cons_data,paste0("gdx/output_",project,"_",lab,".RData")) # YW 20251030 update output naming to include project and lab
 
 cat("Write output finished. ------")
 
 
-# 8. Process RstLnd (not used now)(it can be used as a reference for processing RstLnd in G4M_DS_to_simU_limpopo.r) -----#
-if(FALSE){
-# mapping: ns to g4m 0.5degree grids
-mapping <- readRDS(file='G4m_mapping.RData')[[1]]
-mapping <- data.frame(apply(mapping, 2, as.numeric))
-
-# mapping between: x-y-g4m_id (mapping lat-lon data to g4m 0.5degree grids)
-mapping_g4mid_xy_new <- readRDS(file="mapping_for_G4MDSlink.RData")[[1]]
-
-# maplayer_isforest_new: isForest or not at g4m 0.5degree grids
-maplayer_isforest_new <- readRDS(file="mapping_for_G4MDSlink.RData")[[2]]
-
-
-cat("==> Process RstLnd in res","\n")
-
-res0 <- res$out.res
-# res0$ns <- as.numeric(res0$ns)
-mapping$SimUID <- as.character(mapping$SimUID)
-mapping$g4m_05_id <- as.character(mapping$g4m_05_id)
-
-# 1) mapping DS result to g4mid
-res1 <- res0 %>% left_join(mapping, by=c("ns"="SimUID"))
-
-# 2) Assign RstLnd to afforestable or non-afforestable
-res2 <- res1 %>% left_join(maplayer_isforest_new) %>%
-  mutate(IsForest=ifelse(is.na(IsForest),0,IsForest)) %>%
-  mutate(lu.from=ifelse(IsForest==1,
-                        recode(lu.from,"RstLnd"="RstLnd_YesAffor"),
-                        recode(lu.from,"RstLnd"="RstLnd_NoAffor")))%>%
-  mutate(lu.to=ifelse(IsForest==1,
-                      recode(lu.to,"RstLnd"="RstLnd_YesAffor"),
-                      recode(lu.to,"RstLnd"="RstLnd_NoAffor")))
-
-# 3) Reallocate Rstlnd_YesAffor to OtherNatLnd
-
-res3 <- res2 %>%
-  mutate(lu.from=recode(lu.from,"RstLnd_YesAffor"="OthNatLnd")) %>%
-  mutate(lu.to=recode(lu.to,"RstLnd_YesAffor"="OthNatLnd")) %>%
-  # group_by(REGION,times,ns,lu.to,value,lu.from,g4m_05_id) %>% summarise(value=sum(value)) %>%
-  group_by(REGION,times,ns,lu.to,lu.from,g4m_05_id) %>% summarise(value=sum(value)) %>%
-  select(-c(g4m_05_id)) %>% ungroup()
-}
+# 8. Process RstLnd to RstLnd_NoAffor vs. RstLnd_YesAffor
+## This was decided not to be done in DS, but in G4M_DS_Merge (now in get_biodiversity.R).
 
 
